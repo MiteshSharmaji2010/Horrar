@@ -1,880 +1,989 @@
+```css
+/* =========================================================
+   KILLER ESCAPE 07
+   COMPLETE HORROR GAME STYLE
+   ========================================================= */
+
+
 * {
     box-sizing: border-box;
-    margin: 0;
-    padding: 0;
     -webkit-tap-highlight-color: transparent;
 }
 
+
 html,
 body {
+
+    margin: 0;
+    padding: 0;
+
     width: 100%;
     height: 100%;
+
     overflow: hidden;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #020303;
+
+    background: #020202;
+
     color: #ffffff;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
 }
+
 
 body {
     user-select: none;
 }
 
-button,
-input,
-select {
-    font-family: inherit;
+
+/* =========================================================
+   APP
+   ========================================================= */
+
+#app {
+
+    width: 100%;
+    height: 100%;
+
+    position: relative;
+
 }
 
-button {
-    cursor: pointer;
-}
 
-
-/* =====================================================
+/* =========================================================
    SCREENS
-===================================================== */
+   ========================================================= */
 
 .screen {
-    position: fixed;
-    inset: 0;
+
     display: none;
-    overflow: hidden;
+
+    width: 100%;
+    height: 100%;
+
+    position: relative;
+
 }
+
 
 .screen.active {
+
     display: flex;
+
 }
 
 
-/* =====================================================
+/* =========================================================
    HOME
-===================================================== */
+   ========================================================= */
 
 #homeScreen {
+
     align-items: center;
     justify-content: center;
 
     background:
+
         radial-gradient(
-            circle at 50% 35%,
-            rgba(90, 0, 0, 0.22),
-            transparent 35%
-        ),
-        linear-gradient(
-            145deg,
-            #090a0b 0%,
-            #020202 55%,
+            circle at center,
+            #351010 0%,
+            #110606 35%,
+            #050202 65%,
             #000000 100%
         );
+
 }
+
 
 .backgroundGlow {
+
     position: absolute;
-    width: 500px;
-    height: 500px;
 
-    border-radius: 50%;
-
-    background:
-        radial-gradient(
-            circle,
-            rgba(130, 0, 0, 0.12),
-            transparent 70%
-        );
-
-    filter: blur(20px);
+    inset: 0;
 
     pointer-events: none;
+
+    background:
+
+        radial-gradient(
+            circle at center,
+            rgba(180, 0, 0, 0.25),
+            transparent 55%
+        );
+
+    animation:
+        homeGlow 4s infinite alternate;
+
 }
+
+
+@keyframes homeGlow {
+
+    from {
+        opacity: 0.5;
+    }
+
+    to {
+        opacity: 1;
+    }
+
+}
+
 
 .homeContent {
-    position: relative;
-    z-index: 2;
 
-    width: min(450px, 92vw);
+    position: relative;
+
+    width:
+        min(500px, 92%);
 
     text-align: center;
+
 }
+
 
 .gameLogo {
-    margin-bottom: 15px;
+
+    margin-bottom: 18px;
 
     text-shadow:
-        0 5px 30px #000000;
+        0 0 20px #7b0000,
+        0 0 50px #300000;
+
 }
+
 
 .logoSmall {
-    font-size: 14px;
-    font-weight: bold;
-    letter-spacing: 10px;
 
-    color: #777777;
+    font-size: 13px;
 
-    margin-bottom: 3px;
+    color: #999999;
+
+    letter-spacing: 9px;
+
 }
+
 
 .logoMain {
-    font-size: clamp(48px, 12vw, 90px);
 
-    font-weight: 1000;
-
-    letter-spacing:
-        clamp(4px, 1vw, 10px);
-
-    line-height: 0.9;
-
-    color: #e5e5e5;
-}
-
-.logoNumber {
-    margin-top: 12px;
-
-    font-size: clamp(20px, 5vw, 34px);
+    font-size: 64px;
 
     font-weight: 900;
+
+    color: #d00000;
+
+    letter-spacing: 6px;
+
+    line-height: 0.95;
+
+}
+
+
+.logoNumber {
+
+    margin-top: 7px;
+
+    font-size: 26px;
+
+    color: #eeeeee;
 
     letter-spacing: 8px;
 
-    color: #8d1515;
 }
 
+
 .subtitle {
-    color: #777777;
+
+    margin-bottom: 25px;
+
+    font-size: 11px;
+
+    color: #888888;
+
+    letter-spacing: 3px;
+
+}
+
+
+/* =========================================================
+   CARDS
+   ========================================================= */
+
+.homeCard,
+.formCard {
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(18, 18, 18, 0.96),
+            rgba(5, 5, 5, 0.96)
+        );
+
+    border:
+        1px solid #451515;
+
+    box-shadow:
+
+        0 0 35px
+        rgba(120, 0, 0, 0.2),
+
+        inset 0 0 30px
+        rgba(100, 0, 0, 0.04);
+
+    padding: 30px;
+
+    border-radius: 10px;
+
+}
+
+
+.formCard {
+
+    width:
+        min(500px, 92%);
+
+}
+
+
+.inputLabel {
+
+    text-align: left;
 
     font-size: 10px;
 
-    letter-spacing: 4px;
+    color: #777777;
 
-    margin-bottom: 30px;
+    letter-spacing: 1px;
+
+    margin-bottom: 5px;
+
 }
 
-.homeCard {
-    padding: 24px;
 
-    background:
-        rgba(10, 11, 12, 0.92);
-
-    border:
-        1px solid
-        rgba(255,255,255,0.12);
-
-    border-radius: 14px;
-
-    box-shadow:
-        0 25px 100px
-        rgba(0,0,0,0.75);
-}
+/* =========================================================
+   INPUTS
+   ========================================================= */
 
 input,
 select {
+
     width: 100%;
 
-    height: 48px;
+    padding: 14px;
 
-    padding: 0 14px;
+    margin:
+        8px 0 14px;
 
-    margin-bottom: 10px;
+    background: #101010;
 
-    border-radius: 8px;
+    color: #ffffff;
 
     border:
-        1px solid
-        #353535;
+        1px solid #333333;
+
+    border-radius: 5px;
 
     outline: none;
 
-    background: #101112;
-
-    color: #ffffff;
-
     font-size: 14px;
+
 }
+
 
 input:focus,
 select:focus {
-    border-color: #777777;
+
+    border-color: #a00000;
+
+    box-shadow:
+        0 0 10px
+        rgba(160, 0, 0, 0.25);
+
 }
 
-input::placeholder {
-    color: #666666;
+
+select {
+
+    appearance: auto;
+
 }
 
-.menuButton {
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+button {
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    cursor: pointer;
+
+    border: none;
+
+    color: #ffffff;
+
+    touch-action: manipulation;
+
+}
+
+
+.menuButton,
+.primaryButton,
+.secondaryButton,
+.choiceButton,
+.smallButton,
+.killerButton,
+.readyButton,
+.startButton,
+.leaveButton {
+
     width: 100%;
 
-    height: 50px;
+    padding: 14px;
 
     margin-top: 10px;
 
-    border:
-        1px solid
-        #3c3c3c;
-
-    border-radius: 8px;
-
-    background:
-        linear-gradient(
-            #242526,
-            #151617
-        );
-
-    color: #ffffff;
+    border-radius: 5px;
 
     font-weight: bold;
 
     letter-spacing: 1px;
 
-    transition: 0.2s;
+    transition:
+        transform 0.15s,
+        background 0.15s,
+        border 0.15s;
+
 }
 
-.menuButton:hover {
+
+.menuButton:active,
+.primaryButton:active,
+.secondaryButton:active,
+.choiceButton:active,
+.smallButton:active,
+.killerButton:active,
+.readyButton:active,
+.startButton:active,
+.leaveButton:active {
+
+    transform: scale(0.97);
+
+}
+
+
+.menuButton,
+.primaryButton,
+.startButton {
+
     background:
         linear-gradient(
-            #343536,
-            #1c1d1e
+            180deg,
+            #a31313,
+            #710707
         );
 
-    border-color: #666666;
 }
 
-.menuButton:active {
-    transform: scale(0.98);
+
+.menuButton:hover,
+.primaryButton:hover,
+.startButton:hover {
+
+    background:
+        linear-gradient(
+            180deg,
+            #c51a1a,
+            #900909
+        );
+
 }
+
+
+.secondaryButton,
+.leaveButton {
+
+    background: #242424;
+
+}
+
+
+.secondaryButton:hover,
+.leaveButton:hover {
+
+    background: #333333;
+
+}
+
 
 .connectionStatus {
+
     margin-top: 15px;
 
-    color: #666666;
+    color: #777777;
 
     font-size: 11px;
 
-    letter-spacing: 1px;
 }
 
 
-/* =====================================================
-   FORM SCREENS
-===================================================== */
+/* =========================================================
+   FORMS
+   ========================================================= */
 
 #createScreen,
 #joinScreen {
+
     align-items: center;
     justify-content: center;
 
-    padding: 20px;
-
     background:
+
         radial-gradient(
-            circle at center,
-            rgba(70,0,0,0.12),
-            transparent 45%
-        ),
-        #030404;
+            circle,
+            #280b0b,
+            #030303 70%
+        );
+
 }
 
-.formCard {
-    width: min(450px, 94vw);
-
-    padding: 28px;
-
-    background:
-        rgba(12,13,14,0.97);
-
-    border:
-        1px solid
-        #303234;
-
-    border-radius: 15px;
-
-    box-shadow:
-        0 25px 100px
-        rgba(0,0,0,0.8);
-}
 
 .formTitle {
-    font-size: 28px;
+
+    font-size: 30px;
 
     font-weight: 900;
 
-    letter-spacing: 3px;
+    color: #d00000;
 
-    margin-bottom: 6px;
+    margin-bottom: 5px;
+
 }
 
+
 .formSubtitle {
-    color: #666666;
+
+    color: #777777;
 
     font-size: 11px;
 
+    margin-bottom: 25px;
+
     letter-spacing: 1px;
 
-    margin-bottom: 25px;
 }
 
-.formCard label {
+
+label {
+
     display: block;
 
-    margin-top: 13px;
-    margin-bottom: 7px;
+    color: #999999;
 
-    color: #888888;
+    font-size: 11px;
 
-    font-size: 10px;
+    margin-top: 12px;
 
-    letter-spacing: 1.5px;
 }
 
+
 .choiceGrid {
+
     display: grid;
 
     grid-template-columns:
         1fr 1fr;
 
-    gap: 8px;
+    gap: 10px;
+
 }
+
 
 .choiceButton {
-    min-height: 65px;
 
-    padding: 8px;
+    background: #151515;
 
     border:
-        1px solid
-        #333333;
+        1px solid #333333;
 
-    border-radius: 8px;
-
-    background: #121314;
-
-    color: #aaaaaa;
-
-    font-size: 11px;
-
-    font-weight: bold;
-
-    line-height: 1.4;
 }
 
-.choiceButton span {
-    display: block;
-
-    font-size: 20px;
-
-    margin-bottom: 3px;
-}
 
 .choiceButton.selected {
-    background: #271717;
 
-    border-color: #7b3030;
+    border-color: #d00000;
 
-    color: #ffffff;
+    background:
+        linear-gradient(
+            180deg,
+            #3a0d0d,
+            #1c0505
+        );
+
+    box-shadow:
+        0 0 12px
+        rgba(180, 0, 0, 0.15);
+
 }
 
+
 .infoBox {
+
     display: flex;
 
-    justify-content: space-between;
+    justify-content:
+        space-between;
 
     align-items: center;
-
-    margin-top: 14px;
 
     padding: 12px;
 
-    border-radius: 7px;
-
-    background: #0a0b0c;
-
-    border:
-        1px solid
-        #252627;
-}
-
-.infoBox strong {
-    color: #777777;
-
-    font-size: 10px;
-}
-
-.infoBox span {
-    color: #cccccc;
-
-    font-size: 12px;
-}
-
-.primaryButton,
-.secondaryButton {
-    width: 100%;
-
-    height: 48px;
-
-    margin-top: 10px;
-
-    border-radius: 8px;
-
-    font-weight: bold;
-
-    letter-spacing: 1px;
-}
-
-.primaryButton {
-    border: 1px solid #6b3030;
-
-    background:
-        linear-gradient(
-            #632525,
-            #361414
-        );
-
-    color: #ffffff;
-}
-
-.primaryButton:hover {
-    background:
-        linear-gradient(
-            #7c3030,
-            #471919
-        );
-}
-
-.secondaryButton {
-    border: 1px solid #333333;
-
-    background: #161718;
-
-    color: #888888;
-}
-
-.formMessage {
-    min-height: 20px;
-
     margin-top: 15px;
 
-    text-align: center;
-
-    color: #888888;
-
-    font-size: 12px;
-}
-
-
-/* =====================================================
-   LOBBY
-===================================================== */
-
-#lobbyScreen {
-    align-items: center;
-    justify-content: center;
-
-    padding: 15px;
-
-    background:
-        radial-gradient(
-            circle at center,
-            #141719,
-            #030404 75%
-        );
-}
-
-.lobbyContainer {
-    width: min(1050px, 96vw);
-
-    height: min(750px, 94vh);
-
-    display: flex;
-
-    flex-direction: column;
-
-    overflow: hidden;
-
-    background:
-        rgba(8,9,10,0.97);
+    background: #101010;
 
     border:
-        1px solid
-        #343536;
-
-    border-radius: 15px;
-
-    box-shadow:
-        0 30px 100px
-        rgba(0,0,0,0.8);
-}
-
-.lobbyHeader {
-    min-height: 82px;
-
-    display: grid;
-
-    grid-template-columns:
-        1fr auto auto;
-
-    align-items: center;
-
-    gap: 30px;
-
-    padding:
-        12px 22px;
-
-    background:
-        linear-gradient(
-            #17191a,
-            #101112
-        );
-
-    border-bottom:
-        1px solid
-        #292a2b;
-}
-
-.smallText {
-    color: #666666;
-
-    font-size: 9px;
-
-    letter-spacing: 2px;
-}
-
-.lobbyTitle {
-    font-size: 22px;
-
-    font-weight: 900;
-
-    letter-spacing: 2px;
-}
-
-.roomInfo,
-.playerCounter {
-    display: flex;
-
-    flex-direction: column;
-
-    align-items: center;
-}
-
-.roomInfo span,
-.playerCounter span {
-    color: #666666;
-
-    font-size: 9px;
-
-    letter-spacing: 2px;
-}
-
-.roomInfo strong {
-    color: #d6d6d6;
-
-    font-size: 18px;
-
-    letter-spacing: 3px;
-}
-
-.playerCounter strong {
-    color: #d6d6d6;
-
-    font-size: 18px;
-}
-
-.lobbyBody {
-    flex: 1;
-
-    min-height: 0;
-
-    display: grid;
-
-    grid-template-columns:
-        1.45fr 0.75fr;
-}
-
-.playersSection {
-    min-width: 0;
-
-    padding: 20px;
-
-    border-right:
-        1px solid
-        #292a2b;
-}
-
-.sectionHeader {
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    margin-bottom: 12px;
-}
-
-.sectionHeader h2,
-.sideCard h2 {
-    font-size: 12px;
-
-    letter-spacing: 2px;
-
-    color: #888888;
-}
-
-.sectionHeader span {
-    color: #555555;
-
-    font-size: 11px;
-}
-
-.playersList {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 8px;
-
-    overflow-y: auto;
-
-    height:
-        calc(100% - 35px);
-
-    padding-right: 3px;
-}
-
-.playerCard {
-    display: grid;
-
-    grid-template-columns:
-        45px 1fr auto;
-
-    align-items: center;
-
-    min-height: 65px;
-
-    padding: 8px 12px;
-
-    border:
-        1px solid
-        #292a2b;
-
-    border-radius: 8px;
-
-    background:
-        linear-gradient(
-            120deg,
-            #17191a,
-            #101112
-        );
-}
-
-.playerCard.host {
-    border-color: #6a5428;
-}
-
-.playerCard.killer {
-    border-color: #722c2c;
-
-    background:
-        linear-gradient(
-            120deg,
-            #241313,
-            #121010
-        );
-}
-
-.playerCard.ready {
-    border-left:
-        3px solid
-        #4c7a52;
-}
-
-.playerAvatar {
-    width: 34px;
-    height: 34px;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 7px;
-
-    background: #27292a;
-
-    font-size: 17px;
-}
-
-.playerName {
-    font-size: 13px;
-
-    font-weight: bold;
-
-    color: #dddddd;
-}
-
-.playerDetails {
-    margin-top: 4px;
-
-    color: #666666;
-
-    font-size: 9px;
-
-    text-transform: uppercase;
-}
-
-.playerStatus {
-    text-align: right;
-
-    font-size: 9px;
-
-    color: #777777;
-}
-
-.playerStatus.readyText {
-    color: #6c9d70;
-}
-
-.playerStatus.killerText {
-    color: #bd5555;
-}
-
-.lobbySide {
-    padding: 15px;
-
-    overflow-y: auto;
-}
-
-.sideCard {
-    margin-bottom: 10px;
-
-    padding: 15px;
-
-    border:
-        1px solid
-        #292a2b;
-
-    border-radius: 9px;
-
-    background: #111314;
-}
-
-.sideCard h2 {
-    margin-bottom: 10px;
-}
-
-.characterDescription {
-    min-height: 35px;
-
-    margin-top: 8px;
-
-    color: #666666;
-
-    font-size: 10px;
-
-    line-height: 1.4;
-}
-
-.smallButton {
-    width: 100%;
-
-    height: 40px;
-
-    border:
-        1px solid
-        #3b3c3d;
-
-    border-radius: 7px;
-
-    background: #242627;
-
-    color: #ffffff;
-
-    font-size: 11px;
-
-    font-weight: bold;
-}
-
-.modeText {
-    margin-bottom: 10px;
-
-    padding: 10px;
-
-    border-radius: 6px;
-
-    background: #090a0b;
+        1px solid #292929;
 
     color: #999999;
 
-    text-align: center;
+    font-size: 11px;
 
-    font-size: 10px;
-
-    letter-spacing: 1px;
 }
 
-.killerButton,
-.readyButton,
-.startButton,
-.leaveButton {
-    width: 100%;
 
-    min-height: 43px;
+.infoBox strong {
 
-    margin-top: 7px;
+    color: #dddddd;
 
-    border-radius: 7px;
+}
+
+
+.formMessage {
+
+    margin-top: 15px;
+
+    color: #ff4444;
+
+    font-size: 12px;
+
+}
+
+
+/* =========================================================
+   LOBBY
+   ========================================================= */
+
+#lobbyScreen {
+
+    display: none;
+
+    background:
+
+        radial-gradient(
+            circle at center,
+            #1c0b0b,
+            #050505 70%
+        );
+
+    overflow-y: auto;
+
+}
+
+
+#lobbyScreen.active {
+
+    display: block;
+
+}
+
+
+.lobbyContainer {
+
+    width:
+        min(1200px, 96%);
+
+    margin: auto;
+
+    padding: 20px;
+
+}
+
+
+.lobbyHeader {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content:
+        space-between;
+
+    gap: 15px;
+
+    border-bottom:
+        1px solid #351515;
+
+    padding-bottom: 15px;
+
+}
+
+
+.smallText {
 
     font-size: 10px;
+
+    color: #777777;
+
+    letter-spacing: 2px;
+
+}
+
+
+.lobbyTitle {
+
+    margin-top: 4px;
+
+    font-size: 28px;
+
+    color: #d00000;
+
+    font-weight: 900;
+
+}
+
+
+.roomInfo,
+.playerCounter {
+
+    background: #101010;
+
+    padding:
+        10px 18px;
+
+    border:
+        1px solid #333333;
+
+    border-radius: 5px;
+
+    min-width: 110px;
+
+}
+
+
+.roomInfo span,
+.playerCounter span {
+
+    display: block;
+
+    font-size: 9px;
+
+    color: #666666;
+
+}
+
+
+.roomInfo strong,
+.playerCounter strong {
+
+    color: #eeeeee;
+
+    font-size: 15px;
+
+}
+
+
+.lobbyBody {
+
+    display: grid;
+
+    grid-template-columns:
+        2fr 1fr;
+
+    gap: 20px;
+
+    margin-top: 20px;
+
+}
+
+
+.playersSection,
+.sideCard {
+
+    background:
+        rgba(8, 8, 8, 0.95);
+
+    border:
+        1px solid #301616;
+
+    padding: 18px;
+
+    border-radius: 8px;
+
+}
+
+
+.sectionHeader {
+
+    display: flex;
+
+    justify-content:
+        space-between;
+
+    align-items: center;
+
+    border-bottom:
+        1px solid #292929;
+
+    margin-bottom: 12px;
+
+}
+
+
+.sectionHeader h2,
+.sideCard h2 {
+
+    margin:
+        0 0 15px;
+
+    font-size: 15px;
+
+}
+
+
+.sectionHeader span {
+
+    color: #666666;
+
+    font-size: 10px;
+
+}
+
+
+.playersList {
+
+    display: grid;
+
+    gap: 10px;
+
+}
+
+
+.playerCard {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    padding: 12px;
+
+    background: #141414;
+
+    border:
+        1px solid #292929;
+
+    border-radius: 6px;
+
+}
+
+
+.playerCard.killer {
+
+    border-color: #790000;
+
+    background:
+        linear-gradient(
+            90deg,
+            #260707,
+            #130303
+        );
+
+}
+
+
+.playerCard.ready {
+
+    border-color:
+        rgba(40, 180, 90, 0.4);
+
+}
+
+
+.playerAvatar {
+
+    width: 45px;
+    height: 45px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    background: #222222;
+
+    border-radius: 50%;
+
+    font-size: 20px;
+
+}
+
+
+.playerName {
 
     font-weight: bold;
 
-    letter-spacing: 1px;
+    font-size: 14px;
+
 }
+
+
+.playerDetails {
+
+    font-size: 10px;
+
+    color: #777777;
+
+    margin-top: 3px;
+
+}
+
+
+.playerStatus {
+
+    margin-left: auto;
+
+    font-size: 10px;
+
+    color: #888888;
+
+}
+
+
+.playerCard.ready
+.playerStatus {
+
+    color: #2ecc71;
+
+}
+
+
+.lobbySide {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 15px;
+
+}
+
+
+.smallButton {
+
+    background: #333333;
+
+}
+
+
+.smallButton:hover {
+
+    background: #444444;
+
+}
+
 
 .killerButton {
-    border: 1px solid #612d2d;
 
-    background: #281515;
+    background:
+        linear-gradient(
+            180deg,
+            #5a0a0a,
+            #330505
+        );
 
-    color: #c87979;
 }
+
 
 .readyButton {
-    border: 1px solid #45624a;
 
-    background: #172019;
+    background: #333333;
 
-    color: #80a785;
 }
+
 
 .readyButton.active {
-    background: #35543a;
 
-    color: #ffffff;
+    background:
+        linear-gradient(
+            180deg,
+            #16813a,
+            #0d5427
+        );
+
 }
+
 
 .startButton {
-    border: 1px solid #70542b;
 
-    background: #2c2112;
+    margin-top: 10px;
 
-    color: #d3b275;
 }
+
 
 .leaveButton {
-    border: 1px solid #4a2929;
 
-    background: #201313;
+    margin-top: 10px;
 
-    color: #a76d6d;
 }
 
 
-/* =====================================================
+.modeText {
+
+    padding: 12px;
+
+    margin-bottom: 4px;
+
+    background: #111111;
+
+    border:
+        1px solid #292929;
+
+    color: #bbbbbb;
+
+    text-align: center;
+
+    font-size: 11px;
+
+}
+
+
+/* =========================================================
    GAME
-===================================================== */
+   ========================================================= */
 
 #gameScreen {
+
+    position: relative;
+
     background: #000000;
+
+    overflow: hidden;
+
 }
 
-#gameCanvas {
+
+#game3D {
+
     position: absolute;
 
     inset: 0;
@@ -882,514 +991,765 @@ input::placeholder {
     width: 100%;
     height: 100%;
 
-    display: block;
+    overflow: hidden;
 
-    background:
-        linear-gradient(
-            #111923,
-            #020202
-        );
 }
 
+
+#game3D canvas {
+
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+}
+
+
+/* =========================================================
+   HUD
+   ========================================================= */
+
 .gameHUD {
+
     position: absolute;
 
     inset: 0;
 
     pointer-events: none;
+
 }
 
+
 .topHUD {
+
     position: absolute;
 
-    top: 15px;
-    left: 15px;
-    right: 15px;
+    top: 0;
+    left: 0;
+    right: 0;
 
     display: flex;
 
-    justify-content: space-between;
-
     align-items: flex-start;
+
+    justify-content:
+        space-between;
+
+    gap: 8px;
+
+    padding: 12px;
+
 }
+
 
 .healthHUD,
 .roleHUD,
 .playerHUD {
-    padding: 8px 11px;
 
     background:
-        rgba(0,0,0,0.55);
+        rgba(0, 0, 0, 0.65);
 
     border:
         1px solid
-        rgba(255,255,255,0.1);
+        rgba(255,255,255,0.12);
 
-    border-radius: 7px;
+    padding:
+        9px 12px;
+
+    border-radius: 6px;
+
+    backdrop-filter:
+        blur(5px);
+
 }
 
+
 .healthHUD {
+
     display: flex;
 
     align-items: center;
 
-    gap: 7px;
+    gap: 8px;
+
 }
 
-.bar {
-    width: 120px;
-    height: 8px;
 
-    overflow: hidden;
+.hudIcon {
 
-    background: #222222;
+    font-size: 16px;
 
-    border-radius: 10px;
 }
 
-.barFill {
-    width: 100%;
-    height: 100%;
-}
 
-.barFill.health {
-    background: #9b2929;
-}
+.hudLabel {
 
-.roleHUD,
-.playerHUD {
-    display: flex;
-
-    flex-direction: column;
-
-    text-align: center;
-}
-
-.roleHUD span,
-.playerHUD span {
-    color: #777777;
+    display: block;
 
     font-size: 8px;
 
-    letter-spacing: 1px;
+    color: #777777;
+
+    margin-bottom: 3px;
+
 }
 
-.roleHUD strong {
-    color: #cccccc;
+
+.bar {
+
+    width: 130px;
+
+    height: 8px;
+
+    background: #252525;
+
+    overflow: hidden;
+
+    border-radius: 5px;
+
+}
+
+
+.barFill {
+
+    height: 100%;
+
+    transition:
+        width 0.2s;
+
+}
+
+
+.barFill.health {
+
+    width: 100%;
+
+    background:
+        linear-gradient(
+            90deg,
+            #8b0000,
+            #ff2020
+        );
+
+}
+
+
+.roleHUD span,
+.playerHUD span {
+
+    display: block;
+
+    font-size: 8px;
+
+    color: #777777;
+
+}
+
+
+.roleHUD strong,
+.playerHUD strong {
 
     font-size: 12px;
+
 }
 
-.playerHUD strong {
-    font-size: 13px;
-}
+
+/* =========================================================
+   OBJECTIVE
+   ========================================================= */
 
 .objectiveHUD {
+
     position: absolute;
 
-    top: 85px;
+    top: 75px;
 
     left: 50%;
 
     transform:
         translateX(-50%);
 
-    padding: 9px 15px;
+    width:
+        max-content;
+
+    max-width: 90%;
 
     background:
-        rgba(0,0,0,0.5);
+        rgba(0, 0, 0, 0.72);
 
-    border-radius: 6px;
+    border:
+        1px solid #452020;
 
-    color: #b0b0b0;
+    padding:
+        9px 16px;
 
-    font-size: 10px;
+    border-radius: 5px;
 
-    letter-spacing: 1px;
+    color: #dddddd;
+
+    font-size: 11px;
 
     text-align: center;
+
+    letter-spacing: 0.5px;
+
 }
 
-.mobileControls {
+
+/* =========================================================
+   INVENTORY
+   ========================================================= */
+
+.inventoryHUD {
+
     position: absolute;
 
     left: 15px;
-    right: 15px;
+
     bottom: 20px;
 
-    display: flex;
+    padding: 10px 14px;
 
-    justify-content: space-between;
+    background:
+        rgba(0,0,0,0.65);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.12);
+
+    border-radius: 6px;
+
+}
+
+
+.inventoryTitle {
+
+    font-size: 8px;
+
+    color: #666666;
+
+    margin-bottom: 4px;
+
+}
+
+
+.keyCounter {
+
+    font-size: 13px;
+
+    font-weight: bold;
+
+}
+
+
+/* =========================================================
+   CROSSHAIR
+   ========================================================= */
+
+.crosshair {
+
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    transform:
+        translate(-50%, -50%);
+
+    color:
+        rgba(255,255,255,0.6);
+
+    font-size: 20px;
+
+    text-shadow:
+        0 0 5px #000000;
+
+}
+
+
+/* =========================================================
+   MOBILE CONTROLS
+   ========================================================= */
+
+.mobileControls {
+
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 18px;
+
+    display: flex;
 
     align-items: flex-end;
 
+    justify-content:
+        space-between;
+
+    padding:
+        0 22px;
+
     pointer-events: auto;
+
 }
+
 
 .movementControls {
+
     text-align: center;
+
 }
 
-.movementControls > div {
-    display: flex;
+
+.controlButton,
+.actionButton {
+
+    display: inline-flex;
 
     align-items: center;
 
     justify-content: center;
-}
 
-.controlButton,
-.actionButton {
-    width: 52px;
-    height: 52px;
+    width: 55px;
+    height: 55px;
 
     margin: 3px;
-
-    border:
-        1px solid
-        rgba(255,255,255,0.2);
 
     border-radius: 50%;
 
     background:
-        rgba(20,20,20,0.75);
+        rgba(15,15,15,0.72);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.22);
 
     color: #ffffff;
 
-    font-size: 18px;
+    font-size: 19px;
 
-    backdrop-filter: blur(5px);
+    touch-action: none;
+
+    user-select: none;
+
+    -webkit-user-select: none;
+
+    backdrop-filter:
+        blur(4px);
+
 }
 
-.actionControls {
-    display: flex;
-
-    align-items: center;
-}
-
-.actionButton {
-    font-size: 20px;
-}
 
 .controlButton:active,
 .actionButton:active {
-    transform: scale(0.9);
 
     background:
-        rgba(90,20,20,0.85);
+        rgba(120,0,0,0.8);
+
+    transform:
+        scale(0.92);
+
 }
 
 
-/* =====================================================
-   MODAL
-===================================================== */
+.actionControls {
 
-.modal {
+    display: flex;
+
+    align-items: flex-end;
+
+}
+
+
+.actionButton {
+
+    width: 60px;
+    height: 60px;
+
+    font-size: 20px;
+
+}
+
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+
+.toast {
+
+    position: fixed;
+
+    left: 50%;
+
+    bottom: 28px;
+
+    transform:
+        translateX(-50%)
+        translateY(30px);
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    z-index: 999999;
+
+    background:
+        linear-gradient(
+            180deg,
+            #260707,
+            #0e0303
+        );
+
+    border:
+        1px solid #761010;
+
+    padding:
+        11px 20px;
+
+    border-radius: 6px;
+
+    font-size: 12px;
+
+    box-shadow:
+        0 0 25px
+        rgba(120,0,0,0.25);
+
+    transition:
+        opacity 0.25s,
+        transform 0.25s;
+
+}
+
+
+.toast.show {
+
+    opacity: 1;
+
+    transform:
+        translateX(-50%)
+        translateY(0);
+
+}
+
+
+/* =========================================================
+   JUMPSCARE
+   ========================================================= */
+
+.jumpscare {
+
     position: fixed;
 
     inset: 0;
 
-    z-index: 500;
+    z-index: 9999999;
 
     display: none;
 
     align-items: center;
+
     justify-content: center;
 
-    background:
-        rgba(0,0,0,0.75);
+    flex-direction: column;
 
-    backdrop-filter: blur(5px);
+    background:
+        radial-gradient(
+            circle,
+            #650000,
+            #080000 45%,
+            #000000 100%
+        );
+
 }
 
-.modal.show {
+
+.jumpscare.show {
+
     display: flex;
-}
 
-.modalCard {
-    width: min(350px, 90vw);
+    animation:
+        scareFlash 0.1s
+        infinite alternate;
 
-    padding: 25px;
-
-    border:
-        1px solid
-        #4b4b4b;
-
-    border-radius: 12px;
-
-    background: #111213;
-
-    box-shadow:
-        0 30px 100px
-        #000000;
-
-    text-align: center;
-}
-
-.modalTitle {
-    color: #888888;
-
-    font-size: 11px;
-
-    letter-spacing: 3px;
-
-    margin-bottom: 15px;
-}
-
-.requestPlayerName {
-    font-size: 18px;
-
-    font-weight: bold;
-
-    margin-bottom: 20px;
-}
-
-.acceptButton,
-.rejectButton {
-    width: 100%;
-
-    height: 45px;
-
-    margin-top: 8px;
-
-    border-radius: 7px;
-
-    font-weight: bold;
-}
-
-.acceptButton {
-    border: 1px solid #456248;
-
-    background: #1b2c1e;
-
-    color: #a7c8ab;
-}
-
-.rejectButton {
-    border: 1px solid #542f2f;
-
-    background: #281515;
-
-    color: #c17b7b;
 }
 
 
-/* =====================================================
-   TOAST
-===================================================== */
+.jumpscareFace {
 
-.toast {
-    position: fixed;
+    font-size:
+        clamp(100px, 20vw, 260px);
 
-    left: 50%;
-    bottom: 25px;
+    filter:
+        drop-shadow(
+            0 0 30px red
+        );
 
-    z-index: 1000;
-
-    max-width: 90vw;
-
-    padding: 11px 18px;
-
-    transform:
-        translate(-50%, 120px);
-
-    opacity: 0;
-
-    border:
-        1px solid
-        #444444;
-
-    border-radius: 8px;
-
-    background:
-        rgba(5,5,5,0.95);
-
-    color: #dddddd;
-
-    font-size: 12px;
-
-    text-align: center;
-
-    transition:
-        transform 0.25s,
-        opacity 0.25s;
-}
-
-.toast.show {
-    transform:
-        translate(-50%, 0);
-
-    opacity: 1;
 }
 
 
-/* =====================================================
+.jumpscareText {
+
+    margin-top: 10px;
+
+    font-size:
+        clamp(30px, 7vw, 80px);
+
+    font-weight: 900;
+
+    letter-spacing: 10px;
+
+    color: #ff2222;
+
+}
+
+
+@keyframes scareFlash {
+
+    from {
+        filter: brightness(0.7);
+    }
+
+    to {
+        filter: brightness(1.3);
+    }
+
+}
+
+
+/* =========================================================
+   DESKTOP
+   ========================================================= */
+
+@media (min-width: 701px) {
+
+    .mobileControls {
+
+        opacity: 0.65;
+
+    }
+
+}
+
+
+/* =========================================================
    MOBILE
-===================================================== */
+   ========================================================= */
 
 @media (max-width: 700px) {
 
-    .logoSmall {
-        letter-spacing: 6px;
-    }
 
     .logoMain {
-        font-size: 55px;
+
+        font-size: 43px;
+
     }
+
 
     .logoNumber {
-        font-size: 22px;
 
-        letter-spacing: 5px;
+        font-size: 19px;
+
+        letter-spacing: 6px;
+
     }
 
-    .homeCard {
-        padding: 18px;
+
+    .subtitle {
+
+        font-size: 9px;
+
+        letter-spacing: 2px;
+
     }
+
+
+    .homeCard,
+    .formCard {
+
+        padding: 22px;
+
+    }
+
 
     .lobbyContainer {
-        width: 96vw;
 
-        height: 95vh;
+        width: 100%;
 
-        border-radius: 10px;
+        padding: 12px;
+
     }
+
 
     .lobbyHeader {
-        min-height: 72px;
 
-        grid-template-columns:
-            1fr auto auto;
+        flex-wrap: wrap;
 
-        gap: 10px;
-
-        padding: 10px 13px;
     }
+
 
     .lobbyTitle {
-        font-size: 16px;
+
+        font-size: 22px;
+
     }
 
-    .roomInfo strong,
-    .playerCounter strong {
-        font-size: 14px;
+
+    .roomInfo,
+    .playerCounter {
+
+        flex: 1;
+
+        min-width: 100px;
+
     }
+
 
     .lobbyBody {
-        display: flex;
 
-        flex-direction: column;
+        grid-template-columns: 1fr;
 
-        overflow-y: auto;
     }
 
-    .playersSection {
-        min-height: 300px;
-
-        border-right: 0;
-
-        border-bottom:
-            1px solid
-            #292a2b;
-    }
-
-    .playersList {
-        height: 245px;
-    }
-
-    .lobbySide {
-        overflow: visible;
-    }
-
-    .choiceGrid {
-        grid-template-columns:
-            1fr 1fr;
-    }
 
     .topHUD {
-        top: 8px;
-        left: 8px;
-        right: 8px;
+
+        padding: 7px;
+
     }
+
 
     .healthHUD,
     .roleHUD,
     .playerHUD {
-        padding: 6px 7px;
+
+        padding: 6px 8px;
+
     }
+
 
     .bar {
-        width: 70px;
+
+        width: 65px;
+
     }
+
+
+    .roleHUD strong,
+    .playerHUD strong {
+
+        font-size: 10px;
+
+    }
+
 
     .objectiveHUD {
-        top: 70px;
 
-        max-width: 90vw;
+        top: 64px;
 
-        font-size: 9px;
+        width: 92%;
+
+        font-size: 10px;
+
+        padding: 8px;
+
     }
 
-    .controlButton,
-    .actionButton {
+
+    .inventoryHUD {
+
+        left: 10px;
+
+        bottom: 10px;
+
+    }
+
+
+    .mobileControls {
+
+        bottom: 10px;
+
+        padding:
+            0 10px;
+
+    }
+
+
+    .controlButton {
+
         width: 48px;
         height: 48px;
 
-        margin: 2px;
+        font-size: 17px;
+
+    }
+
+
+    .actionButton {
+
+        width: 52px;
+        height: 52px;
+
     }
 
 }
 
 
-/* =====================================================
-   SMALL MOBILE
-===================================================== */
+/* =========================================================
+   VERY SMALL PHONES
+   ========================================================= */
 
-@media (max-width: 420px) {
+@media (max-width: 400px) {
 
+
+    .logoMain {
+
+        font-size: 36px;
+
+    }
+
+
+    .logoNumber {
+
+        font-size: 16px;
+
+    }
+
+
+    .homeCard,
     .formCard {
-        padding: 20px;
+
+        padding: 18px;
+
     }
 
-    .formTitle {
-        font-size: 23px;
+
+    .mobileControls {
+
+        padding:
+            0 5px;
+
     }
 
-    .choiceButton {
-        font-size: 9px;
-    }
 
-    .playerCard {
-        grid-template-columns:
-            38px 1fr auto;
+    .controlButton {
 
-        min-height: 58px;
-    }
-
-    .playerAvatar {
-        width: 30px;
-        height: 30px;
-    }
-
-    .controlButton,
-    .actionButton {
         width: 44px;
         height: 44px;
 
-        font-size: 16px;
+        margin: 2px;
+
+    }
+
+
+    .actionButton {
+
+        width: 47px;
+        height: 47px;
+
+        margin: 2px;
+
     }
 
 }
-
-
-/* =====================================================
-   DESKTOP
-===================================================== */
-
-@media (min-width: 1000px) {
-
-    .mobileControls {
-        opacity: 0.85;
-    }
-
-}
+```
