@@ -1,945 +1,1446 @@
-Haan. Main **6 files poore**, bina code chhota kiye, **2-2 files karke** dunga.
-
-**Part 1/3:** `package.json` + `server.js`
-**Part 2/3:** `public/index.html` + `public/style.css`
-**Part 3/3:** `public/client.js` + `public/game3d.js`
-
-Is version mein **3D horror mansion, multiplayer lobby, room create/join, keys, killer AI, flashlight, health, jumpscare, escape, keyboard + mobile controls** rahenge.
-
-### Part 1 — `package.json`
-
-```json
-{
-  "name": "killer-escape-07",
-  "version": "1.0.0",
-  "description": "Killer Escape 07 - Multiplayer 3D Horror Game",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.21.2",
-    "socket.io": "^4.8.1"
-  }
-}
-```
-
-### Part 1 — `server.js`
-
-```javascript
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const path = require("path");
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import crypto from "crypto";
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    },
+    transports: ["websocket", "polling"]
+});
+
+app.use(express.static("public"));
+
+/* =========================================================
+   KILLER 07 SERVER
+   ========================================================= */
 
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, "public")));
+/*
+   Temporary memory database.
 
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+   Later we can replace this with MySQL/MongoDB/Firebase.
+*/
 
-
-/* =========================================================
-   GAME DATA
-   ========================================================= */
-
+const users = new Map();
 const rooms = new Map();
 
-const characters = [
-    "Alex",
-    "Maya",
-    "Ryan",
-    "Emma",
-    "Noah",
-    "Liam",
-    "Sofia",
-    "Daniel",
-    "Ava"
-];
-
-const costumes = [
-    "Casual",
-    "Detective",
-    "Engineer",
-    "Medic",
-    "Night Survivor",
-    "Police",
-    "Explorer",
-    "Hunter",
-    "Masked",
-    "Dark"
-];
-
-
 /* =========================================================
-   ROOM CODE
+   HELPERS
    ========================================================= */
 
-function generateRoomCode() {
+function cleanText(value, maxLength = 40) {
 
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return String(value ?? "")
+        .trim()
+        .slice(0, maxLength)
+        .replace(/[<>]/g, "");
+}
 
-    let code = "";
 
-    do {
+function createRoomCode() {
 
-        code = "";
+    return crypto
+        .randomBytes(3)
+        .toString("hex")
+        .toUpperCase();
+}
 
-        for (let i = 0; i < 6; i++) {
-            code += chars[
-                Math.floor(Math.random() * chars.length)
-            ];
+
+function getRoom(socket) {
+
+    for (const room of rooms.values()) {
+
+        if (room.players.has(socket.id)) {
+            return room;
         }
+    }
 
-    } while (rooms.has(code));
+    return null;
+}
 
-    return code;
+
+function getUser(socket) {
+
+    if (!socket.data.username) {
+        return null;
+    }
+
+    return users.get(socket.data.username) || null;
+}
+
+
+function getOnlineUsers() {
+
+    const online = new Set();
+
+    for (const socket of io.sockets.sockets.values()) {
+
+        if (socket.data.username) {
+            online.add(socket.data.username);
+        }
+    }
+
+    return online;
 }
 
 
 /* =========================================================
-   PLAYER DATA
+   ROOM PLAYER DATA
    ========================================================= */
 
-function createPlayer(socket, name) {
+function playerPublicData(player) {
 
     return {
 
-        id: socket.id,
+        id: player.id,
 
-        name:
-            String(name || "Player")
-                .substring(0, 20),
+        name: player.name,
 
-        character:
-            characters[
-                Math.floor(
-                    Math.random() *
-                    characters.length
-                )
-            ],
+        username: player.username,
 
-        costume:
-            costumes[
-                Math.floor(
-                    Math.random() *
-                    costumes.length
-                )
-            ],
+        ready: player.ready,
 
-        role: "survivor",
+        role: player.role,
 
-        ready: false,
+        health: player.health,
 
-        lives: 3,
+        alive: player.alive,
 
-        health: 100,
+        character: player.character,
 
-        x: 0,
-
-        y: 1,
-
-        z: 8
+        costume: player.costume
 
     };
 }
 
 
 /* =========================================================
-   PUBLIC ROOM DATA
-   ========================================================= */
-
-function publicRoom(room) {
-
-    return {
-
-        code: room.code,
-
-        killerMode:
-            room.killerMode,
-
-        started:
-            room.started,
-
-        hostId:
-            room.hostId,
-
-        players:
-            room.players.map(player => ({
-
-                id:
-                    player.id,
-
-                name:
-                    player.name,
-
-                character:
-                    player.character,
-
-                costume:
-                    player.costume,
-
-                role:
-                    player.role,
-
-                ready:
-                    player.ready,
-
-                lives:
-                    player.lives
-
-            }))
-
-    };
-}
-
-
-/* =========================================================
-   SEND ROOM UPDATE
+   ROOM UPDATE
    ========================================================= */
 
 function sendRoomUpdate(room) {
 
-    io.to(room.code).emit(
-        "room:update",
-        publicRoom(room)
-    );
+    if (!room) {
+        return;
+    }
 
+    const players = [];
+
+    for (const player of room.players.values()) {
+
+        players.push(
+            playerPublicData(player)
+        );
+    }
+
+    io.to(room.code).emit("roomUpdate", {
+
+        code: room.code,
+
+        host: room.host,
+
+        started: room.started,
+
+        maxPlayers: 9,
+
+        playerCount: players.length,
+
+        players
+
+    });
 }
 
 
 /* =========================================================
-   CREATE ROOM
+   LOGIN / ACCOUNT
    ========================================================= */
 
-io.on("connection", socket => {
+io.on("connection", (socket) => {
 
-    console.log(
-        "Connected:",
-        socket.id
-    );
+    console.log("Player connected:", socket.id);
 
 
-    socket.on(
-        "createRoom",
-        data => {
+    socket.emit("serverInfo", {
 
-            const name =
-                data &&
-                data.name
-                    ? data.name
-                    : "Player";
+        name: "KILLER 07",
 
-            const password =
-                data &&
-                data.password
-                    ? String(data.password)
-                    : "";
+        version: "1.0.0",
 
-            if (!password) {
+        status: "online"
 
-                socket.emit(
-                    "errorMessage",
-                    "Room password required"
-                );
+    });
+
+
+    /* =====================================================
+       LOGIN
+       ===================================================== */
+
+    socket.on("login", (data, callback) => {
+
+        try {
+
+            const name = cleanText(data?.name, 24);
+
+            const username = cleanText(
+                data?.username,
+                24
+            ).toLowerCase();
+
+            const password = String(
+                data?.password ?? ""
+            ).slice(0, 64);
+
+
+            if (!name) {
+
+                callback?.({
+                    ok: false,
+                    error: "Please enter your name."
+                });
 
                 return;
             }
 
 
-            const code =
-                generateRoomCode();
+            if (!username) {
+
+                callback?.({
+                    ok: false,
+                    error: "Please enter a username."
+                });
+
+                return;
+            }
 
 
-            const player =
-                createPlayer(
-                    socket,
-                    name
-                );
+            if (username.length < 3) {
+
+                callback?.({
+                    ok: false,
+                    error: "Username must contain at least 3 characters."
+                });
+
+                return;
+            }
 
 
-            const room = {
+            if (!password) {
 
-                code,
+                callback?.({
+                    ok: false,
+                    error: "Please enter your password."
+                });
 
-                password,
-
-                hostId:
-                    socket.id,
-
-                killerMode:
-                    data.killerMode === "choose"
-                        ? "choose"
-                        : "random",
-
-                started: false,
-
-                players: [
-                    player
-                ]
-
-            };
+                return;
+            }
 
 
-            rooms.set(
-                code,
-                room
-            );
+            const existingUser = users.get(username);
 
 
-            socket.join(code);
+            if (existingUser) {
 
-            socket.data.roomCode =
-                code;
+                if (existingUser.password !== password) {
 
+                    callback?.({
+                        ok: false,
+                        error: "Incorrect password."
+                    });
 
-            socket.emit(
-                "roomCreated",
-                {
-                    code
+                    return;
                 }
+
+
+                existingUser.name = name;
+
+            } else {
+
+                users.set(username, {
+
+                    username,
+
+                    name,
+
+                    password,
+
+                    friends: new Set(),
+
+                    createdAt: Date.now()
+
+                });
+
+            }
+
+
+            socket.data.username = username;
+
+            socket.data.name = name;
+
+
+            callback?.({
+
+                ok: true,
+
+                user: {
+
+                    username,
+
+                    name
+
+                }
+
+            });
+
+
+            io.emit(
+                "onlineCount",
+                getOnlineUsers().size
             );
 
 
-            sendRoomUpdate(room);
+            console.log(
+                `${name} logged in as @${username}`
+            );
+
+        } catch (error) {
+
+            console.error("Login error:", error);
+
+            callback?.({
+
+                ok: false,
+
+                error: "Server error during login."
+
+            });
 
         }
-    );
+
+    });
+
+
+    /* =====================================================
+       FRIEND SEARCH
+       ===================================================== */
+
+    socket.on("searchFriends", (query, callback) => {
+
+        const search = cleanText(
+            query,
+            30
+        ).toLowerCase();
+
+
+        if (!search) {
+
+            callback?.([]);
+
+            return;
+        }
+
+
+        const onlineUsers = getOnlineUsers();
+
+        const results = [];
+
+
+        for (const user of users.values()) {
+
+            if (
+
+                user.username.includes(search) ||
+
+                user.name
+                    .toLowerCase()
+                    .includes(search)
+
+            ) {
+
+                results.push({
+
+                    name: user.name,
+
+                    username: user.username,
+
+                    online: onlineUsers.has(
+                        user.username
+                    )
+
+                });
+
+            }
+
+
+            if (results.length >= 15) {
+                break;
+            }
+
+        }
+
+
+        callback?.(results);
+
+    });
+
+
+    /* =====================================================
+       FRIEND INVITE
+       ===================================================== */
+
+    socket.on("inviteFriend", (data) => {
+
+        const targetUsername = cleanText(
+            data?.username,
+            30
+        ).toLowerCase();
+
+
+        const roomCode = cleanText(
+            data?.roomCode,
+            10
+        ).toUpperCase();
+
+
+        if (!targetUsername || !roomCode) {
+            return;
+        }
+
+
+        const targetSocket = [
+            ...io.sockets.sockets.values()
+        ].find(
+            s =>
+                s.data.username ===
+                targetUsername
+        );
+
+
+        if (!targetSocket) {
+
+            socket.emit("systemMessage", {
+
+                type: "error",
+
+                message:
+                    "That friend is currently offline."
+
+            });
+
+            return;
+        }
+
+
+        targetSocket.emit(
+            "friendInvite",
+            {
+
+                from: socket.data.username,
+
+                roomCode
+
+            }
+        );
+
+    });
+
+
+    /* =====================================================
+       CREATE ROOM
+       ===================================================== */
+
+    socket.on("createRoom", (data, callback) => {
+
+        const user = getUser(socket);
+
+        if (!user) {
+
+            callback?.({
+
+                ok: false,
+
+                error: "Please login first."
+
+            });
+
+            return;
+        }
+
+
+        if (getRoom(socket)) {
+
+            callback?.({
+
+                ok: false,
+
+                error:
+                    "You are already inside a room."
+
+            });
+
+            return;
+        }
+
+
+        let roomCode;
+
+
+        do {
+
+            roomCode = createRoomCode();
+
+        } while (rooms.has(roomCode));
+
+
+        const password = String(
+            data?.password ?? ""
+        ).slice(0, 32);
+
+
+        const room = {
+
+            code: roomCode,
+
+            password,
+
+            host: socket.id,
+
+            players: new Map(),
+
+            started: false,
+
+            createdAt: Date.now(),
+
+            gameSeed:
+                Math.floor(
+                    Math.random() * 999999999
+                ),
+
+            killerId: null,
+
+            collectedItems: new Set()
+
+        };
+
+
+        rooms.set(roomCode, room);
+
+
+        addPlayerToRoom(
+            socket,
+            room
+        );
+
+
+        callback?.({
+
+            ok: true,
+
+            roomCode
+
+        });
+
+
+        sendRoomUpdate(room);
+
+    });
 
 
     /* =====================================================
        JOIN ROOM
        ===================================================== */
 
-    socket.on(
-        "joinRoom",
-        data => {
+    socket.on("joinRoom", (data, callback) => {
 
-            const code =
-                String(
-                    data &&
-                    data.code
-                        ? data.code
-                        : ""
-                )
-                    .trim()
-                    .toUpperCase();
+        const user = getUser(socket);
 
+        if (!user) {
 
-            const password =
-                data &&
-                data.password
-                    ? String(data.password)
-                    : "";
+            callback?.({
 
+                ok: false,
 
-            const room =
-                rooms.get(code);
+                error: "Please login first."
 
+            });
 
-            if (!room) {
-
-                socket.emit(
-                    "errorMessage",
-                    "Room not found"
-                );
-
-                return;
-            }
-
-
-            if (room.started) {
-
-                socket.emit(
-                    "errorMessage",
-                    "Game already started"
-                );
-
-                return;
-            }
-
-
-            if (room.password !== password) {
-
-                socket.emit(
-                    "errorMessage",
-                    "Wrong password"
-                );
-
-                return;
-            }
-
-
-            if (room.players.length >= 9) {
-
-                socket.emit(
-                    "errorMessage",
-                    "Room is full"
-                );
-
-                return;
-            }
-
-
-            const player =
-                createPlayer(
-                    socket,
-                    data.name
-                );
-
-
-            room.players.push(
-                player
-            );
-
-
-            socket.join(code);
-
-            socket.data.roomCode =
-                code;
-
-
-            socket.emit(
-                "joinedRoom",
-                {
-                    code
-                }
-            );
-
-
-            sendRoomUpdate(room);
-
+            return;
         }
-    );
 
 
-    /* =====================================================
-       CHARACTER
-       ===================================================== */
+        if (getRoom(socket)) {
 
-    socket.on(
-        "changeCharacter",
-        character => {
+            callback?.({
 
-            const room =
-                getPlayerRoom(socket);
+                ok: false,
 
-            if (!room)
-                return;
+                error:
+                    "You are already inside a room."
 
+            });
 
-            const player =
-                room.players.find(
-                    p =>
-                        p.id ===
-                        socket.id
-                );
-
-            if (!player)
-                return;
-
-
-            if (
-                characters.includes(
-                    character
-                )
-            ) {
-
-                player.character =
-                    character;
-
-            }
-
-
-            sendRoomUpdate(room);
-
+            return;
         }
-    );
 
 
-    /* =====================================================
-       COSTUME
-       ===================================================== */
-
-    socket.on(
-        "changeCostume",
-        costume => {
-
-            const room =
-                getPlayerRoom(socket);
-
-            if (!room)
-                return;
+        const roomCode = cleanText(
+            data?.roomCode,
+            10
+        ).toUpperCase();
 
 
-            const player =
-                room.players.find(
-                    p =>
-                        p.id ===
-                        socket.id
-                );
-
-            if (!player)
-                return;
+        const password = String(
+            data?.password ?? ""
+        ).slice(0, 32);
 
 
-            if (
-                costumes.includes(
-                    costume
-                )
-            ) {
-
-                player.costume =
-                    costume;
-
-            }
+        const room = rooms.get(roomCode);
 
 
-            sendRoomUpdate(room);
+        if (!room) {
 
+            callback?.({
+
+                ok: false,
+
+                error: "Room not found."
+
+            });
+
+            return;
         }
-    );
+
+
+        if (room.started) {
+
+            callback?.({
+
+                ok: false,
+
+                error:
+                    "This game has already started."
+
+            });
+
+            return;
+        }
+
+
+        if (room.players.size >= 9) {
+
+            callback?.({
+
+                ok: false,
+
+                error:
+                    "Room is full. Maximum 9 players."
+
+            });
+
+            return;
+        }
+
+
+        if (room.password !== password) {
+
+            callback?.({
+
+                ok: false,
+
+                error:
+                    "Incorrect room password."
+
+            });
+
+            return;
+        }
+
+
+        addPlayerToRoom(
+            socket,
+            room
+        );
+
+
+        callback?.({
+
+            ok: true,
+
+            roomCode
+
+        });
+
+
+        sendRoomUpdate(room);
+
+    });
 
 
     /* =====================================================
        READY
        ===================================================== */
 
-    socket.on(
-        "ready",
-        value => {
+    socket.on("setReady", (data) => {
 
-            const room =
-                getPlayerRoom(socket);
+        const room = getRoom(socket);
 
-            if (!room)
-                return;
-
-
-            const player =
-                room.players.find(
-                    p =>
-                        p.id ===
-                        socket.id
-                );
-
-            if (!player)
-                return;
-
-
-            player.ready =
-                Boolean(value);
-
-
-            sendRoomUpdate(room);
-
+        if (!room) {
+            return;
         }
-    );
+
+
+        const player =
+            room.players.get(socket.id);
+
+
+        if (!player) {
+            return;
+        }
+
+
+        player.ready =
+            Boolean(data?.ready);
+
+
+        sendRoomUpdate(room);
+
+    });
 
 
     /* =====================================================
-       CHOOSE KILLER
+       CHARACTER SELECTION
        ===================================================== */
 
-    socket.on(
-        "chooseKiller",
-        () => {
+    socket.on("selectCharacter", (data) => {
 
-            const room =
-                getPlayerRoom(socket);
+        const room = getRoom(socket);
 
-            if (!room)
-                return;
+        if (!room || room.started) {
+            return;
+        }
 
 
-            if (
-                room.killerMode !==
-                "choose"
-            ) {
-
-                socket.emit(
-                    "errorMessage",
-                    "Killer mode is RANDOM"
-                );
-
-                return;
-            }
+        const player =
+            room.players.get(socket.id);
 
 
-            room.players.forEach(
-                player => {
+        if (!player) {
+            return;
+        }
 
-                    player.role =
-                        player.id ===
-                        socket.id
-                            ? "killer"
-                            : "survivor";
 
-                }
+        const character =
+            cleanText(
+                data?.character,
+                30
             );
 
 
-            sendRoomUpdate(room);
+        const costume =
+            cleanText(
+                data?.costume,
+                30
+            );
 
+
+        if (character) {
+            player.character = character;
         }
-    );
+
+
+        if (costume) {
+            player.costume = costume;
+        }
+
+
+        sendRoomUpdate(room);
+
+    });
 
 
     /* =====================================================
        START GAME
        ===================================================== */
 
-    socket.on(
-        "startGame",
-        () => {
+    socket.on("startGame", () => {
 
-            const room =
-                getPlayerRoom(socket);
+        const room = getRoom(socket);
 
-            if (!room)
-                return;
+        if (!room) {
+            return;
+        }
 
 
-            if (
-                room.hostId !==
-                socket.id
-            ) {
+        if (room.host !== socket.id) {
 
-                socket.emit(
-                    "errorMessage",
-                    "Only the room host can start"
-                );
-
-                return;
-            }
-
-
-            if (room.started) {
-                return;
-            }
-
-
-            if (
-                room.players.length === 0
-            ) {
-
-                socket.emit(
-                    "errorMessage",
-                    "No players"
-                );
-
-                return;
-            }
-
-
-            /* RANDOM KILLER */
-
-            if (
-                room.killerMode ===
-                "random"
-            ) {
-
-                const randomIndex =
-                    Math.floor(
-                        Math.random() *
-                        room.players.length
-                    );
-
-
-                room.players.forEach(
-                    (player, index) => {
-
-                        player.role =
-                            index ===
-                            randomIndex
-                                ? "killer"
-                                : "survivor";
-
-                    }
-                );
-
-            }
-
-
-            room.started =
-                true;
-
-
-            room.players.forEach(
-                player => {
-
-                    player.health =
-                        100;
-
-                    player.lives =
-                        3;
-
-                    player.x =
-                        player.role === "killer"
-                            ? 0
-                            : 0;
-
-                    player.y = 1;
-
-                    player.z =
-                        player.role === "killer"
-                            ? -12
-                            : 8;
-
-                }
-            );
-
-
-            io.to(room.code).emit(
-                "gameStarted",
+            socket.emit(
+                "systemMessage",
                 {
-                    code:
-                        room.code,
 
-                    players:
-                        room.players.map(
-                            player => ({
-                                id:
-                                    player.id,
+                    type: "error",
 
-                                name:
-                                    player.name,
+                    message:
+                        "Only the room host can start the game."
 
-                                character:
-                                    player.character,
-
-                                costume:
-                                    player.costume,
-
-                                role:
-                                    player.role,
-
-                                lives:
-                                    player.lives,
-
-                                x:
-                                    player.x,
-
-                                y:
-                                    player.y,
-
-                                z:
-                                    player.z
-
-                            })
-                        )
                 }
             );
+
+            return;
+        }
+
+
+        if (room.started) {
+            return;
+        }
+
+
+        if (room.players.size < 1) {
+            return;
+        }
+
+
+        room.started = true;
+
+
+        const playerIds =
+            [...room.players.keys()];
+
+
+        /*
+          Random Killer
+        */
+
+        const killerIndex =
+            Math.floor(
+                Math.random() *
+                playerIds.length
+            );
+
+
+        room.killerId =
+            playerIds[killerIndex];
+
+
+        for (
+            const [
+                playerId,
+                player
+            ] of room.players
+        ) {
+
+            player.role =
+                playerId === room.killerId
+                    ? "killer"
+                    : "survivor";
+
+
+            player.health = 100;
+
+            player.alive = true;
+
+            player.ready = true;
 
         }
-    );
+
+
+        sendRoomUpdate(room);
+
+
+        io.to(room.code).emit(
+            "gameStarted",
+            {
+
+                seed: room.gameSeed,
+
+                killerId:
+                    room.killerId,
+
+                roomCode:
+                    room.code
+
+            }
+        );
+
+
+        console.log(
+            `Game started: ${room.code}`
+        );
+
+    });
 
 
     /* =====================================================
-       PLAYER POSITION
+       PLAYER MOVEMENT
        ===================================================== */
 
-    socket.on(
-        "playerMove",
-        data => {
+    socket.on("playerState", (data) => {
 
-            const room =
-                getPlayerRoom(socket);
+        const room = getRoom(socket);
 
-            if (!room)
-                return;
-
-            if (!room.started)
-                return;
+        if (!room || !room.started) {
+            return;
+        }
 
 
-            const player =
-                room.players.find(
-                    p =>
-                        p.id ===
-                        socket.id
-                );
-
-            if (!player)
-                return;
+        const player =
+            room.players.get(socket.id);
 
 
-            if (
-                typeof data.x ===
-                "number"
-            ) {
-
-                player.x =
-                    data.x;
-
-            }
+        if (!player || !player.alive) {
+            return;
+        }
 
 
-            if (
-                typeof data.y ===
-                "number"
-            ) {
+        const state = {
 
-                player.y =
-                    data.y;
+            x: Number(data?.x) || 0,
 
-            }
+            y: Number(data?.y) || 0,
+
+            z: Number(data?.z) || 0,
+
+            rotationY:
+                Number(
+                    data?.rotationY
+                ) || 0,
+
+            health:
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Number(data?.health) || 100
+                    )
+                ),
+
+            stamina:
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Number(data?.stamina) || 100
+                    )
+                ),
+
+            crouching:
+                Boolean(
+                    data?.crouching
+                ),
+
+            running:
+                Boolean(
+                    data?.running
+                )
+
+        };
 
 
-            if (
-                typeof data.z ===
-                "number"
-            ) {
+        player.state = state;
 
-                player.z =
-                    data.z;
-
-            }
+        player.health =
+            state.health;
 
 
-            socket.to(room.code).emit(
-                "playerMove",
+        socket
+            .to(room.code)
+            .emit(
+                "remotePlayerState",
                 {
-                    id:
-                        socket.id,
 
-                    x:
-                        player.x,
+                    id: socket.id,
 
-                    y:
-                        player.y,
+                    name: player.name,
 
-                    z:
-                        player.z
+                    role: player.role,
+
+                    state
+
+                }
+            );
+
+    });
+
+
+    /* =====================================================
+       ITEM COLLECT
+       ===================================================== */
+
+    socket.on("collectItem", (data) => {
+
+        const room = getRoom(socket);
+
+        if (!room || !room.started) {
+            return;
+        }
+
+
+        const itemId =
+            cleanText(
+                data?.itemId,
+                50
+            );
+
+
+        if (!itemId) {
+            return;
+        }
+
+
+        room.collectedItems.add(
+            itemId
+        );
+
+
+        io.to(room.code).emit(
+            "itemCollected",
+            {
+
+                itemId,
+
+                total:
+                    room.collectedItems.size
+
+            }
+        );
+
+
+        /*
+          10 items collected
+        */
+
+        if (
+            room.collectedItems.size >= 10
+        ) {
+
+            io.to(room.code).emit(
+                "escapeUnlocked"
+            );
+
+        }
+
+    });
+
+
+    /* =====================================================
+       DAMAGE
+       ===================================================== */
+
+    socket.on("damagePlayer", (data) => {
+
+        const room = getRoom(socket);
+
+        if (!room || !room.started) {
+            return;
+        }
+
+
+        const targetId =
+            cleanText(
+                data?.targetId,
+                100
+            );
+
+
+        const target =
+            room.players.get(targetId);
+
+
+        if (!target || !target.alive) {
+            return;
+        }
+
+
+        /*
+          Only killer can damage survivor.
+        */
+
+        const attacker =
+            room.players.get(
+                socket.id
+            );
+
+
+        if (
+            !attacker ||
+            attacker.role !== "killer"
+        ) {
+
+            return;
+
+        }
+
+
+        const amount =
+            Math.max(
+                1,
+                Math.min(
+                    100,
+                    Number(data?.amount) || 10
+                )
+            );
+
+
+        target.health =
+            Math.max(
+                0,
+                target.health - amount
+            );
+
+
+        if (
+            target.health <= 0
+        ) {
+
+            target.alive = false;
+
+            io.to(target.id).emit(
+                "playerDead"
+            );
+
+            io.to(room.code).emit(
+                "playerEliminated",
+                {
+
+                    playerId:
+                        target.id,
+
+                    name:
+                        target.name
+
                 }
             );
 
         }
-    );
+
+
+        io.to(target.id).emit(
+            "healthUpdate",
+            {
+
+                health:
+                    target.health
+
+            }
+        );
+
+    });
 
 
     /* =====================================================
        ESCAPE
        ===================================================== */
 
-    socket.on(
-        "playerEscaped",
-        () => {
+    socket.on("escape", () => {
 
-            const room =
-                getPlayerRoom(socket);
+        const room = getRoom(socket);
 
-            if (!room)
-                return;
+        if (!room || !room.started) {
+            return;
+        }
 
 
-            const player =
-                room.players.find(
-                    p =>
-                        p.id ===
-                        socket.id
-                );
+        if (
+            room.collectedItems.size < 10
+        ) {
 
-            if (!player)
-                return;
-
-
-            io.to(room.code).emit(
-                "playerEscaped",
+            socket.emit(
+                "systemMessage",
                 {
-                    id:
-                        player.id,
 
-                    name:
-                        player.name
+                    type: "error",
+
+                    message:
+                        "You need all 10 items before escaping."
+
                 }
             );
 
+            return;
         }
-    );
+
+
+        const player =
+            room.players.get(socket.id);
+
+
+        if (!player || !player.alive) {
+            return;
+        }
+
+
+        io.to(room.code).emit(
+            "playerEscaped",
+            {
+
+                id: socket.id,
+
+                name:
+                    player.name,
+
+                username:
+                    player.username
+
+            }
+        );
+
+    });
+
+
+    /* =====================================================
+       LEAVE ROOM
+       ===================================================== */
+
+    socket.on("leaveRoom", () => {
+
+        removePlayerFromRoom(
+            socket
+        );
+
+    });
 
 
     /* =====================================================
        DISCONNECT
        ===================================================== */
 
-    socket.on(
-        "disconnect",
-        () => {
+    socket.on("disconnect", () => {
 
-            const room =
-                getPlayerRoom(socket);
-
-            if (!room)
-                return;
+        console.log(
+            "Player disconnected:",
+            socket.id
+        );
 
 
-            room.players =
-                room.players.filter(
-                    player =>
-                        player.id !==
-                        socket.id
-                );
+        removePlayerFromRoom(
+            socket
+        );
 
 
-            if (
-                room.players.length ===
-                0
-            ) {
+        io.emit(
+            "onlineCount",
+            getOnlineUsers().size
+        );
 
-                rooms.delete(
-                    room.code
-                );
-
-                return;
-            }
+    });
 
 
-            if (
-                room.hostId ===
-                socket.id
-            ) {
+    /* =====================================================
+       ONLINE COUNT
+       ===================================================== */
 
-                room.hostId =
-                    room.players[0].id;
-
-            }
-
-
-            sendRoomUpdate(room);
-
-        }
+    io.emit(
+        "onlineCount",
+        getOnlineUsers().size
     );
 
 });
 
 
 /* =========================================================
-   GET PLAYER ROOM
+   ADD PLAYER
    ========================================================= */
 
-function getPlayerRoom(socket) {
+function addPlayerToRoom(
+    socket,
+    room
+) {
 
-    const code =
-        socket.data.roomCode;
-
-    if (!code)
-        return null;
+    const user =
+        getUser(socket);
 
 
-    return rooms.get(code) || null;
+    if (!user) {
+        return;
+    }
+
+
+    const player = {
+
+        id: socket.id,
+
+        name: user.name,
+
+        username: user.username,
+
+        ready: false,
+
+        role: "survivor",
+
+        health: 100,
+
+        alive: true,
+
+        character: "default",
+
+        costume: "survivor",
+
+        state: {
+
+            x: 0,
+
+            y: 1.7,
+
+            z: 0,
+
+            rotationY: 0,
+
+            health: 100,
+
+            stamina: 100,
+
+            crouching: false,
+
+            running: false
+
+        }
+
+    };
+
+
+    room.players.set(
+        socket.id,
+        player
+    );
+
+
+    socket.join(
+        room.code
+    );
+
+
+    socket.data.roomCode =
+        room.code;
 
 }
 
 
 /* =========================================================
-   SERVER
+   REMOVE PLAYER
+   ========================================================= */
+
+function removePlayerFromRoom(
+    socket
+) {
+
+    const room =
+        getRoom(socket);
+
+
+    if (!room) {
+        return;
+    }
+
+
+    room.players.delete(
+        socket.id
+    );
+
+
+    socket.leave(
+        room.code
+    );
+
+
+    socket.data.roomCode =
+        null;
+
+
+    /*
+      If host leaves,
+      next player becomes host.
+    */
+
+    if (
+        room.host === socket.id &&
+        room.players.size > 0
+    ) {
+
+        room.host =
+            [...room.players.keys()][0];
+
+    }
+
+
+    /*
+      Empty room gets deleted.
+    */
+
+    if (
+        room.players.size === 0
+    ) {
+
+        rooms.delete(
+            room.code
+        );
+
+        return;
+
+    }
+
+
+    /*
+      If game is running and killer leaves,
+      end game safely.
+    */
+
+    if (
+        room.started &&
+        room.killerId === socket.id
+    ) {
+
+        io.to(room.code).emit(
+            "killerLeft"
+        );
+
+    }
+
+
+    sendRoomUpdate(
+        room
+    );
+
+}
+
+
+/* =========================================================
+   SERVER STATUS
+   ========================================================= */
+
+app.get(
+    "/api/status",
+    (req, res) => {
+
+        res.json({
+
+            game:
+                "KILLER 07",
+
+            status:
+                "online",
+
+            rooms:
+                rooms.size,
+
+            online:
+                getOnlineUsers().size,
+
+            maxPlayers:
+                9
+
+        });
+
+    }
+);
+
+
+/* =========================================================
+   START SERVER
    ========================================================= */
 
 server.listen(
@@ -947,9 +1448,25 @@ server.listen(
     () => {
 
         console.log(
-            `Killer Escape 07 running on port ${PORT}`
+            "======================================"
+        );
+
+        console.log(
+            "       KILLER 07 SERVER ONLINE"
+        );
+
+        console.log(
+            `       PORT: ${PORT}`
+        );
+
+        console.log(
+            "       MAX PLAYERS: 9"
+        );
+
+        console.log(
+            "======================================"
+
         );
 
     }
 );
-```
