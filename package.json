@@ -2,12 +2,12 @@
   "name": "killer-escape-07",
   "version": "1.0.0",
   "description": "Killer Escape 07 - Multiplayer Horror Game",
-  "type": "module",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^5.1.0",
+    "express": "^4.21.2",
     "socket.io": "^4.8.1"
   }
 }
