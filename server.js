@@ -1,49 +1,67 @@
+Haan. Main **6 files poore**, bina code chhota kiye, **2-2 files karke** dunga.
+
+**Part 1/3:** `package.json` + `server.js`
+**Part 2/3:** `public/index.html` + `public/style.css`
+**Part 3/3:** `public/client.js` + `public/game3d.js`
+
+Is version mein **3D horror mansion, multiplayer lobby, room create/join, keys, killer AI, flashlight, health, jumpscare, escape, keyboard + mobile controls** rahenge.
+
+### Part 1 — `package.json`
+
+```json
+{
+  "name": "killer-escape-07",
+  "version": "1.0.0",
+  "description": "Killer Escape 07 - Multiplayer 3D Horror Game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}
+```
+
+### Part 1 — `server.js`
+
+```javascript
 const express = require("express");
 const http = require("http");
-const path = require("path");
 const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
-    res.sendFile(
-        path.join(__dirname, "public", "index.html")
-    );
+    res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-const rooms = {};
 
-const characters = {
-    survivors: [
-        "Alex",
-        "Maya",
-        "Ryan",
-        "Emma",
-        "Noah",
-        "Liam",
-        "Sofia",
-        "Daniel",
-        "Ava",
-        "Ethan"
-    ],
+/* =========================================================
+   GAME DATA
+   ========================================================= */
 
-    killers: [
-        "The Butcher",
-        "The Stalker",
-        "The Hunter",
-        "The Shadow",
-        "The Beast",
-        "The Warden",
-        "The Phantom",
-        "The Watcher"
-    ]
-};
+const rooms = new Map();
+
+const characters = [
+    "Alex",
+    "Maya",
+    "Ryan",
+    "Emma",
+    "Noah",
+    "Liam",
+    "Sofia",
+    "Daniel",
+    "Ava"
+];
 
 const costumes = [
     "Casual",
@@ -58,716 +76,880 @@ const costumes = [
     "Dark"
 ];
 
-function createCode() {
 
-    const chars =
-        "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+/* =========================================================
+   ROOM CODE
+   ========================================================= */
+
+function generateRoomCode() {
+
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
     let code = "";
 
-    for (let i = 0; i < 6; i++) {
-        code += chars[
-            Math.floor(
-                Math.random() * chars.length
-            )
-        ];
-    }
+    do {
 
-    return rooms[code]
-        ? createCode()
-        : code;
+        code = "";
+
+        for (let i = 0; i < 6; i++) {
+            code += chars[
+                Math.floor(Math.random() * chars.length)
+            ];
+        }
+
+    } while (rooms.has(code));
+
+    return code;
 }
 
-function cleanPlayer(player) {
+
+/* =========================================================
+   PLAYER DATA
+   ========================================================= */
+
+function createPlayer(socket, name) {
 
     return {
-        id: player.id,
-        name: player.name,
-        character: player.character,
-        costume: player.costume,
-        role: player.role,
-        ready: player.ready,
-        lives: player.lives,
-        downed: player.downed
+
+        id: socket.id,
+
+        name:
+            String(name || "Player")
+                .substring(0, 20),
+
+        character:
+            characters[
+                Math.floor(
+                    Math.random() *
+                    characters.length
+                )
+            ],
+
+        costume:
+            costumes[
+                Math.floor(
+                    Math.random() *
+                    costumes.length
+                )
+            ],
+
+        role: "survivor",
+
+        ready: false,
+
+        lives: 3,
+
+        health: 100,
+
+        x: 0,
+
+        y: 1,
+
+        z: 8
+
     };
 }
 
-function sendRoom(room) {
+
+/* =========================================================
+   PUBLIC ROOM DATA
+   ========================================================= */
+
+function publicRoom(room) {
+
+    return {
+
+        code: room.code,
+
+        killerMode:
+            room.killerMode,
+
+        started:
+            room.started,
+
+        hostId:
+            room.hostId,
+
+        players:
+            room.players.map(player => ({
+
+                id:
+                    player.id,
+
+                name:
+                    player.name,
+
+                character:
+                    player.character,
+
+                costume:
+                    player.costume,
+
+                role:
+                    player.role,
+
+                ready:
+                    player.ready,
+
+                lives:
+                    player.lives
+
+            }))
+
+    };
+}
+
+
+/* =========================================================
+   SEND ROOM UPDATE
+   ========================================================= */
+
+function sendRoomUpdate(room) {
 
     io.to(room.code).emit(
         "room:update",
-        {
-            code: room.code,
-            host: room.host,
-            killerMode: room.killerMode,
-            killerCount: room.killerCount,
-            gameStarted: room.gameStarted,
-            players:
-                room.players.map(cleanPlayer)
-        }
+        publicRoom(room)
     );
+
 }
 
-function chooseKillers(room) {
 
-    const players =
-        room.players;
+/* =========================================================
+   CREATE ROOM
+   ========================================================= */
 
-    players.forEach(player => {
+io.on("connection", socket => {
 
-        player.role = "survivor";
-        player.lives =
-            players.length >= 4 ? 1 : 3;
-        player.downed = false;
+    console.log(
+        "Connected:",
+        socket.id
+    );
 
-    });
 
-    let count =
-        Math.max(
-            1,
-            Math.min(
-                room.killerCount,
-                Math.floor(
-                    players.length / 2
-                )
-            )
-        );
+    socket.on(
+        "createRoom",
+        data => {
 
-    if (
-        room.killerMode ===
-        "random"
-    ) {
+            const name =
+                data &&
+                data.name
+                    ? data.name
+                    : "Player";
 
-        const shuffled =
-            [...players]
-            .sort(
-                () =>
-                    Math.random() - 0.5
-            );
+            const password =
+                data &&
+                data.password
+                    ? String(data.password)
+                    : "";
 
-        for (
-            let i = 0;
-            i < count;
-            i++
-        ) {
-
-            shuffled[i].role =
-                "killer";
-
-            shuffled[i].character =
-                characters.killers[
-                    Math.floor(
-                        Math.random() *
-                        characters.killers.length
-                    )
-                ];
-
-        }
-
-    } else {
-
-        const selected =
-            players
-            .filter(
-                player =>
-                    player.wantsKiller
-            );
-
-        for (
-            let i = 0;
-            i < Math.min(
-                count,
-                selected.length
-            );
-            i++
-        ) {
-
-            selected[i].role =
-                "killer";
-
-        }
-
-    }
-
-    players.forEach(player => {
-
-        if (
-            player.role ===
-            "survivor"
-        ) {
-
-            player.character =
-                characters.survivors[
-                    Math.floor(
-                        Math.random() *
-                        characters.survivors.length
-                    )
-                ];
-
-        }
-
-    });
-}
-
-io.on(
-    "connection",
-    socket => {
-
-        console.log(
-            "Player connected:",
-            socket.id
-        );
-
-        socket.on(
-            "createRoom",
-            data => {
-
-                const code =
-                    createCode();
-
-                const room = {
-
-                    code,
-
-                    host:
-                        socket.id,
-
-                    password:
-                        String(
-                            data.password || ""
-                        ),
-
-                    killerMode:
-                        data.killerMode ===
-                        "choose"
-                            ? "choose"
-                            : "random",
-
-                    killerCount: 1,
-
-                    gameStarted: false,
-
-                    players: []
-
-                };
-
-                room.players.push({
-
-                    id: socket.id,
-
-                    name:
-                        String(
-                            data.name ||
-                            "Player"
-                        )
-                        .substring(
-                            0,
-                            20
-                        ),
-
-                    character:
-                        "Alex",
-
-                    costume:
-                        "Casual",
-
-                    role:
-                        "survivor",
-
-                    ready: false,
-
-                    lives: 3,
-
-                    downed: false,
-
-                    wantsKiller: false
-
-                });
-
-                rooms[code] =
-                    room;
-
-                socket.join(code);
-
-                socket.data.room =
-                    code;
+            if (!password) {
 
                 socket.emit(
-                    "roomCreated",
-                    {
-                        code
-                    }
+                    "errorMessage",
+                    "Room password required"
                 );
 
-                sendRoom(room);
-
+                return;
             }
-        );
 
 
-        socket.on(
-            "joinRoom",
-            data => {
+            const code =
+                generateRoomCode();
 
-                const code =
-                    String(
-                        data.code || ""
-                    )
+
+            const player =
+                createPlayer(
+                    socket,
+                    name
+                );
+
+
+            const room = {
+
+                code,
+
+                password,
+
+                hostId:
+                    socket.id,
+
+                killerMode:
+                    data.killerMode === "choose"
+                        ? "choose"
+                        : "random",
+
+                started: false,
+
+                players: [
+                    player
+                ]
+
+            };
+
+
+            rooms.set(
+                code,
+                room
+            );
+
+
+            socket.join(code);
+
+            socket.data.roomCode =
+                code;
+
+
+            socket.emit(
+                "roomCreated",
+                {
+                    code
+                }
+            );
+
+
+            sendRoomUpdate(room);
+
+        }
+    );
+
+
+    /* =====================================================
+       JOIN ROOM
+       ===================================================== */
+
+    socket.on(
+        "joinRoom",
+        data => {
+
+            const code =
+                String(
+                    data &&
+                    data.code
+                        ? data.code
+                        : ""
+                )
                     .trim()
                     .toUpperCase();
 
-                const password =
-                    String(
-                        data.password || ""
-                    );
+
+            const password =
+                data &&
+                data.password
+                    ? String(data.password)
+                    : "";
 
 
-                const room =
-                    rooms[code];
+            const room =
+                rooms.get(code);
 
 
-                if (!room) {
-
-                    socket.emit(
-                        "errorMessage",
-                        "Room not found."
-                    );
-
-                    return;
-
-                }
-
-
-                if (
-                    room.password !==
-                    password
-                ) {
-
-                    socket.emit(
-                        "errorMessage",
-                        "Wrong password."
-                    );
-
-                    return;
-
-                }
-
-
-                if (
-                    room.players.length >= 9
-                ) {
-
-                    socket.emit(
-                        "errorMessage",
-                        "Room is full."
-                    );
-
-                    return;
-
-                }
-
-
-                room.players.push({
-
-                    id: socket.id,
-
-                    name:
-                        String(
-                            data.name ||
-                            "Player"
-                        )
-                        .substring(
-                            0,
-                            20
-                        ),
-
-                    character:
-                        "Maya",
-
-                    costume:
-                        "Detective",
-
-                    role:
-                        "survivor",
-
-                    ready: false,
-
-                    lives:
-                        room.players.length >= 3
-                            ? 1
-                            : 3,
-
-                    downed: false,
-
-                    wantsKiller: false
-
-                });
-
-
-                socket.join(code);
-
-                socket.data.room =
-                    code;
-
+            if (!room) {
 
                 socket.emit(
-                    "joinedRoom",
-                    {
-                        code
-                    }
+                    "errorMessage",
+                    "Room not found"
+                );
+
+                return;
+            }
+
+
+            if (room.started) {
+
+                socket.emit(
+                    "errorMessage",
+                    "Game already started"
+                );
+
+                return;
+            }
+
+
+            if (room.password !== password) {
+
+                socket.emit(
+                    "errorMessage",
+                    "Wrong password"
+                );
+
+                return;
+            }
+
+
+            if (room.players.length >= 9) {
+
+                socket.emit(
+                    "errorMessage",
+                    "Room is full"
+                );
+
+                return;
+            }
+
+
+            const player =
+                createPlayer(
+                    socket,
+                    data.name
                 );
 
 
-                sendRoom(room);
-
-            }
-        );
-
-
-        socket.on(
-            "changeCharacter",
-            character => {
-
-                const code =
-                    socket.data.room;
-
-                const room =
-                    rooms[code];
-
-                if (!room)
-                    return;
+            room.players.push(
+                player
+            );
 
 
-                const player =
-                    room.players.find(
-                        p =>
-                            p.id ===
-                            socket.id
-                    );
+            socket.join(code);
 
-                if (!player)
-                    return;
+            socket.data.roomCode =
+                code;
 
 
-                if (
-                    player.role ===
-                    "killer"
-                ) {
-
-                    if (
-                        characters.killers
-                        .includes(
-                            character
-                        )
-                    ) {
-
-                        player.character =
-                            character;
-
-                    }
-
-                } else {
-
-                    if (
-                        characters.survivors
-                        .includes(
-                            character
-                        )
-                    ) {
-
-                        player.character =
-                            character;
-
-                    }
-
+            socket.emit(
+                "joinedRoom",
+                {
+                    code
                 }
-
-                sendRoom(room);
-
-            }
-        );
+            );
 
 
-        socket.on(
-            "changeCostume",
-            costume => {
+            sendRoomUpdate(room);
 
-                const code =
-                    socket.data.room;
-
-                const room =
-                    rooms[code];
-
-                if (!room)
-                    return;
+        }
+    );
 
 
-                const player =
-                    room.players.find(
-                        p =>
-                            p.id ===
-                            socket.id
-                    );
+    /* =====================================================
+       CHARACTER
+       ===================================================== */
 
-                if (!player)
-                    return;
+    socket.on(
+        "changeCharacter",
+        character => {
 
+            const room =
+                getPlayerRoom(socket);
 
-                if (
-                    costumes.includes(
-                        costume
-                    )
-                ) {
-
-                    player.costume =
-                        costume;
-
-                }
-
-                sendRoom(room);
-
-            }
-        );
+            if (!room)
+                return;
 
 
-        socket.on(
-            "setKillerCount",
-            count => {
+            const player =
+                room.players.find(
+                    p =>
+                        p.id ===
+                        socket.id
+                );
 
-                const code =
-                    socket.data.room;
-
-                const room =
-                    rooms[code];
-
-                if (!room)
-                    return;
+            if (!player)
+                return;
 
 
-                if (
-                    room.host !==
-                    socket.id
+            if (
+                characters.includes(
+                    character
                 )
-                    return;
+            ) {
 
-
-                count =
-                    Number(count);
-
-
-                if (
-                    ![1, 2, 3]
-                    .includes(count)
-                ) {
-
-                    count = 1;
-
-                }
-
-
-                room.killerCount =
-                    count;
-
-                sendRoom(room);
+                player.character =
+                    character;
 
             }
-        );
 
 
-        socket.on(
-            "chooseKiller",
-            () => {
+            sendRoomUpdate(room);
 
-                const code =
-                    socket.data.room;
-
-                const room =
-                    rooms[code];
-
-                if (!room)
-                    return;
+        }
+    );
 
 
-                const player =
-                    room.players.find(
-                        p =>
-                            p.id ===
-                            socket.id
-                    );
+    /* =====================================================
+       COSTUME
+       ===================================================== */
 
-                if (!player)
-                    return;
+    socket.on(
+        "changeCostume",
+        costume => {
 
+            const room =
+                getPlayerRoom(socket);
 
-                player.wantsKiller =
-                    !player.wantsKiller;
-
-
-                sendRoom(room);
-
-            }
-        );
+            if (!room)
+                return;
 
 
-        socket.on(
-            "ready",
-            value => {
+            const player =
+                room.players.find(
+                    p =>
+                        p.id ===
+                        socket.id
+                );
 
-                const code =
-                    socket.data.room;
-
-                const room =
-                    rooms[code];
-
-                if (!room)
-                    return;
+            if (!player)
+                return;
 
 
-                const player =
-                    room.players.find(
-                        p =>
-                            p.id ===
-                            socket.id
-                    );
-
-                if (!player)
-                    return;
-
-
-                player.ready =
-                    Boolean(value);
-
-
-                sendRoom(room);
-
-            }
-        );
-
-
-        socket.on(
-            "startGame",
-            () => {
-
-                const code =
-                    socket.data.room;
-
-                const room =
-                    rooms[code];
-
-                if (!room)
-                    return;
-
-
-                if (
-                    room.host !==
-                    socket.id
+            if (
+                costumes.includes(
+                    costume
                 )
-                    return;
+            ) {
+
+                player.costume =
+                    costume;
+
+            }
 
 
-                if (
-                    room.players.length < 1
-                ) {
+            sendRoomUpdate(room);
 
-                    socket.emit(
-                        "errorMessage",
-                        "Need at least 1 player."
-                    );
+        }
+    );
 
-                    return;
+
+    /* =====================================================
+       READY
+       ===================================================== */
+
+    socket.on(
+        "ready",
+        value => {
+
+            const room =
+                getPlayerRoom(socket);
+
+            if (!room)
+                return;
+
+
+            const player =
+                room.players.find(
+                    p =>
+                        p.id ===
+                        socket.id
+                );
+
+            if (!player)
+                return;
+
+
+            player.ready =
+                Boolean(value);
+
+
+            sendRoomUpdate(room);
+
+        }
+    );
+
+
+    /* =====================================================
+       CHOOSE KILLER
+       ===================================================== */
+
+    socket.on(
+        "chooseKiller",
+        () => {
+
+            const room =
+                getPlayerRoom(socket);
+
+            if (!room)
+                return;
+
+
+            if (
+                room.killerMode !==
+                "choose"
+            ) {
+
+                socket.emit(
+                    "errorMessage",
+                    "Killer mode is RANDOM"
+                );
+
+                return;
+            }
+
+
+            room.players.forEach(
+                player => {
+
+                    player.role =
+                        player.id ===
+                        socket.id
+                            ? "killer"
+                            : "survivor";
 
                 }
+            );
 
 
-                chooseKillers(room);
+            sendRoomUpdate(room);
 
-                room.gameStarted =
-                    true;
+        }
+    );
 
 
-                io.to(code).emit(
-                    "gameStarted",
-                    {
-                        code,
-                        players:
-                            room.players.map(
-                                cleanPlayer
-                            )
+    /* =====================================================
+       START GAME
+       ===================================================== */
+
+    socket.on(
+        "startGame",
+        () => {
+
+            const room =
+                getPlayerRoom(socket);
+
+            if (!room)
+                return;
+
+
+            if (
+                room.hostId !==
+                socket.id
+            ) {
+
+                socket.emit(
+                    "errorMessage",
+                    "Only the room host can start"
+                );
+
+                return;
+            }
+
+
+            if (room.started) {
+                return;
+            }
+
+
+            if (
+                room.players.length === 0
+            ) {
+
+                socket.emit(
+                    "errorMessage",
+                    "No players"
+                );
+
+                return;
+            }
+
+
+            /* RANDOM KILLER */
+
+            if (
+                room.killerMode ===
+                "random"
+            ) {
+
+                const randomIndex =
+                    Math.floor(
+                        Math.random() *
+                        room.players.length
+                    );
+
+
+                room.players.forEach(
+                    (player, index) => {
+
+                        player.role =
+                            index ===
+                            randomIndex
+                                ? "killer"
+                                : "survivor";
+
                     }
                 );
 
-
-                sendRoom(room);
-
             }
-        );
 
 
-        socket.on(
-            "disconnect",
-            () => {
-
-                const code =
-                    socket.data.room;
-
-                if (!code)
-                    return;
+            room.started =
+                true;
 
 
-                const room =
-                    rooms[code];
+            room.players.forEach(
+                player => {
 
-                if (!room)
-                    return;
+                    player.health =
+                        100;
 
+                    player.lives =
+                        3;
 
-                room.players =
-                    room.players.filter(
-                        p =>
-                            p.id !==
-                            socket.id
-                    );
+                    player.x =
+                        player.role === "killer"
+                            ? 0
+                            : 0;
 
+                    player.y = 1;
 
-                if (
-                    room.players.length === 0
-                ) {
-
-                    delete rooms[code];
-
-                    return;
+                    player.z =
+                        player.role === "killer"
+                            ? -12
+                            : 8;
 
                 }
+            );
 
 
-                if (
-                    room.host ===
-                    socket.id
-                ) {
+            io.to(room.code).emit(
+                "gameStarted",
+                {
+                    code:
+                        room.code,
 
-                    room.host =
-                        room.players[0].id;
+                    players:
+                        room.players.map(
+                            player => ({
+                                id:
+                                    player.id,
 
+                                name:
+                                    player.name,
+
+                                character:
+                                    player.character,
+
+                                costume:
+                                    player.costume,
+
+                                role:
+                                    player.role,
+
+                                lives:
+                                    player.lives,
+
+                                x:
+                                    player.x,
+
+                                y:
+                                    player.y,
+
+                                z:
+                                    player.z
+
+                            })
+                        )
                 }
+            );
+
+        }
+    );
 
 
-                sendRoom(room);
+    /* =====================================================
+       PLAYER POSITION
+       ===================================================== */
+
+    socket.on(
+        "playerMove",
+        data => {
+
+            const room =
+                getPlayerRoom(socket);
+
+            if (!room)
+                return;
+
+            if (!room.started)
+                return;
+
+
+            const player =
+                room.players.find(
+                    p =>
+                        p.id ===
+                        socket.id
+                );
+
+            if (!player)
+                return;
+
+
+            if (
+                typeof data.x ===
+                "number"
+            ) {
+
+                player.x =
+                    data.x;
 
             }
-        );
 
-    }
-);
 
+            if (
+                typeof data.y ===
+                "number"
+            ) {
+
+                player.y =
+                    data.y;
+
+            }
+
+
+            if (
+                typeof data.z ===
+                "number"
+            ) {
+
+                player.z =
+                    data.z;
+
+            }
+
+
+            socket.to(room.code).emit(
+                "playerMove",
+                {
+                    id:
+                        socket.id,
+
+                    x:
+                        player.x,
+
+                    y:
+                        player.y,
+
+                    z:
+                        player.z
+                }
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       ESCAPE
+       ===================================================== */
+
+    socket.on(
+        "playerEscaped",
+        () => {
+
+            const room =
+                getPlayerRoom(socket);
+
+            if (!room)
+                return;
+
+
+            const player =
+                room.players.find(
+                    p =>
+                        p.id ===
+                        socket.id
+                );
+
+            if (!player)
+                return;
+
+
+            io.to(room.code).emit(
+                "playerEscaped",
+                {
+                    id:
+                        player.id,
+
+                    name:
+                        player.name
+                }
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       DISCONNECT
+       ===================================================== */
+
+    socket.on(
+        "disconnect",
+        () => {
+
+            const room =
+                getPlayerRoom(socket);
+
+            if (!room)
+                return;
+
+
+            room.players =
+                room.players.filter(
+                    player =>
+                        player.id !==
+                        socket.id
+                );
+
+
+            if (
+                room.players.length ===
+                0
+            ) {
+
+                rooms.delete(
+                    room.code
+                );
+
+                return;
+            }
+
+
+            if (
+                room.hostId ===
+                socket.id
+            ) {
+
+                room.hostId =
+                    room.players[0].id;
+
+            }
+
+
+            sendRoomUpdate(room);
+
+        }
+    );
+
+});
+
+
+/* =========================================================
+   GET PLAYER ROOM
+   ========================================================= */
+
+function getPlayerRoom(socket) {
+
+    const code =
+        socket.data.roomCode;
+
+    if (!code)
+        return null;
+
+
+    return rooms.get(code) || null;
+
+}
+
+
+/* =========================================================
+   SERVER
+   ========================================================= */
 
 server.listen(
     PORT,
-    "0.0.0.0",
     () => {
 
         console.log(
-            `Killer Escape 07 server running on port ${PORT}`
+            `Killer Escape 07 running on port ${PORT}`
         );
 
     }
 );
+```
