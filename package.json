@@ -1,7 +1,7 @@
 {
   "name": "killer-escape-07",
   "version": "1.0.0",
-  "description": "Killer Escape 07 Multiplayer Horror Game",
+  "description": "Killer Escape 07 - Multiplayer 3D Horror Game",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
