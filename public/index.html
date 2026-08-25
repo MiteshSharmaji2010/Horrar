@@ -1,1 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    >
+
+    <title>Killer Escape 07</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+
+<body>
+
+<div id="app">
+
+
+    <!-- =========================
+         HOME
+    ========================== -->
+
+    <section
+        id="homeScreen"
+        class="screen active"
+    >
+
+        <div class="backgroundGlow"></div>
+
+        <div class="homeContent">
+
+            <div class="gameLogo">
+
+                <div class="logoSmall">
+                    HORROR
+                </div>
+
+                <div class="logoMain">
+                    KILLER
+                </div>
+
+                <div class="logoNumber">
+                    ESCAPE 07
+                </div>
+
+            </div>
+
+
+            <div class="subtitle">
+                SURVIVE • ESCAPE • TRUST NO ONE
+            </div>
+
+
+            <div class="homeCard">
+
+                <input
+                    id="playerName"
+                    type="text"
+                    maxlength="20"
+                    placeholder="ENTER YOUR NAME"
+                    autocomplete="off"
+                >
+
+
+                <button
+                    class="menuButton"
+                    onclick="openCreate()"
+                >
+                    CREATE ROOM
+                </button>
+
+
+                <button
+                    class="menuButton"
+                    onclick="openJoin()"
+                >
+                    JOIN ROOM
+                </button>
+
+
+                <div
+                    id="connectionStatus"
+                    class="connectionStatus"
+                >
+                    CONNECTING...
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================
+         CREATE ROOM
+    ========================== -->
+
+    <section
+        id="createScreen"
+        class="screen"
+    >
+
+        <div class="formCard">
+
+            <div class="formTitle">
+                CREATE ROOM
+            </div>
+
+            <div class="formSubtitle">
+                CREATE YOUR PRIVATE HORROR LOBBY
+            </div>
+
+
+            <label>
+                ROOM PASSWORD
+            </label>
+
+            <input
+                id="createPassword"
+                type="password"
+                maxlength="30"
+                placeholder="Enter password"
+            >
+
+
+            <label>
+                KILLER MODE
+            </label>
+
+
+            <div class="choiceGrid">
+
+                <button
+                    id="randomKillerButton"
+                    class="choiceButton selected"
+                    onclick="selectKillerMode('random')"
+                >
+                    <span>🎲</span>
+                    RANDOM KILLER
+                </button>
+
+
+                <button
+                    id="chooseKillerButton"
+                    class="choiceButton"
+                    onclick="selectKillerMode('choose')"
+                >
+                    <span>🔪</span>
+                    CHOOSE KILLER
+                </button>
+
+            </div>
+
+
+            <div class="infoBox">
+
+                <strong>
+                    PLAYER LIMIT
+                </strong>
+
+                <span>
+                    1 - 9 PLAYERS
+                </span>
+
+            </div>
+
+
+            <button
+                class="primaryButton"
+                onclick="createRoom()"
+            >
+                CREATE ROOM
+            </button>
+
+
+            <button
+                class="secondaryButton"
+                onclick="showScreen('homeScreen')"
+            >
+                BACK
+            </button>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================
+         JOIN ROOM
+    ========================== -->
+
+    <section
+        id="joinScreen"
+        class="screen"
+    >
+
+        <div class="formCard">
+
+            <div class="formTitle">
+                JOIN ROOM
+            </div>
+
+            <div class="formSubtitle">
+                ENTER ROOM CODE AND PASSWORD
+            </div>
+
+
+            <label>
+                ROOM CODE
+            </label>
+
+            <input
+                id="joinCode"
+                type="text"
+                maxlength="10"
+                placeholder="Example: A7K92P"
+                autocomplete="off"
+            >
+
+
+            <label>
+                PASSWORD
+            </label>
+
+            <input
+                id="joinPassword"
+                type="password"
+                maxlength="30"
+                placeholder="Room password"
+            >
+
+
+            <button
+                class="primaryButton"
+                onclick="joinRoom()"
+            >
+                JOIN ROOM
+            </button>
+
+
+            <button
+                class="secondaryButton"
+                onclick="showScreen('homeScreen')"
+            >
+                BACK
+            </button>
+
+
+            <div
+                id="joinMessage"
+                class="formMessage"
+            ></div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================
+         LOBBY
+    ========================== -->
+
+    <section
+        id="lobbyScreen"
+        class="screen"
+    >
+
+        <div class="lobbyContainer">
+
+
+            <!-- TOP -->
+
+            <div class="lobbyHeader">
+
+                <div>
+
+                    <div class="smallText">
+                        KILLER ESCAPE 07
+                    </div>
+
+                    <div class="lobbyTitle">
+                        HORROR LOBBY
+                    </div>
+
+                </div>
+
+
+                <div class="roomInfo">
+
+                    <span>
+                        ROOM
+                    </span>
+
+                    <strong
+                        id="roomCodeText"
+                    >
+                        ------
+                    </strong>
+
+                </div>
+
+
+                <div class="playerCounter">
+
+                    <span>
+                        PLAYERS
+                    </span>
+
+                    <strong
+                        id="playerCountText"
+                    >
+                        0/9
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- BODY -->
+
+            <div class="lobbyBody">
+
+
+                <!-- PLAYERS -->
+
+                <div class="playersSection">
+
+                    <div class="sectionHeader">
+
+                        <h2>
+                            PLAYERS
+                        </h2>
+
+                        <span>
+                            1 - 9
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        id="playersList"
+                        class="playersList"
+                    ></div>
+
+                </div>
+
+
+
+                <!-- RIGHT -->
+
+                <div class="lobbySide">
+
+
+                    <!-- CHARACTER -->
+
+                    <div class="sideCard">
+
+                        <h2>
+                            CHARACTER
+                        </h2>
+
+                        <select
+                            id="characterSelect"
+                        >
+
+                            <option value="Scout">
+                                Scout
+                            </option>
+
+                            <option value="Medic">
+                                Medic
+                            </option>
+
+                            <option value="Engineer">
+                                Engineer
+                            </option>
+
+                            <option value="Tracker">
+                                Tracker
+                            </option>
+
+                        </select>
+
+
+                        <div
+                            id="characterDescription"
+                            class="characterDescription"
+                        >
+                            Fast survivor with improved sprint.
+                        </div>
+
+
+                        <button
+                            class="smallButton"
+                            onclick="changeCharacter()"
+                        >
+                            SELECT
+                        </button>
+
+                    </div>
+
+
+
+                    <!-- KILLER -->
+
+                    <div class="sideCard">
+
+                        <h2>
+                            ROLE
+                        </h2>
+
+
+                        <div
+                            id="killerModeText"
+                            class="modeText"
+                        >
+                            RANDOM KILLER
+                        </div>
+
+
+                        <button
+                            id="killerRequestButton"
+                            class="killerButton"
+                            onclick="requestKiller()"
+                        >
+                            REQUEST KILLER
+                        </button>
+
+                    </div>
+
+
+
+                    <!-- READY -->
+
+                    <div class="sideCard">
+
+                        <button
+                            id="readyButton"
+                            class="readyButton"
+                            onclick="toggleReady()"
+                        >
+                            READY
+                        </button>
+
+
+                        <button
+                            id="startButton"
+                            class="startButton"
+                            onclick="startGame()"
+                        >
+                            START GAME
+                        </button>
+
+
+                        <button
+                            class="leaveButton"
+                            onclick="leaveRoom()"
+                        >
+                            LEAVE ROOM
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================
+         GAME
+    ========================== -->
+
+    <section
+        id="gameScreen"
+        class="screen"
+    >
+
+        <canvas
+            id="gameCanvas"
+        ></canvas>
+
+
+        <div class="gameHUD">
+
+
+            <div class="topHUD">
+
+                <div class="healthHUD">
+
+                    <span>
+                        ❤️
+                    </span>
+
+                    <div class="bar">
+
+                        <div
+                            id="healthBar"
+                            class="barFill health"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="roleHUD">
+
+                    <span>
+                        ROLE
+                    </span>
+
+                    <strong
+                        id="gameRole"
+                    >
+                        SURVIVOR
+                    </strong>
+
+                </div>
+
+
+                <div class="playerHUD">
+
+                    <span>
+                        PLAYERS
+                    </span>
+
+                    <strong
+                        id="gamePlayerCount"
+                    >
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <div
+                id="objectiveHUD"
+                class="objectiveHUD"
+            >
+
+                OBJECTIVE:
+                FIND A WAY TO ESCAPE
+
+            </div>
+
+
+
+            <div class="mobileControls">
+
+                <div class="movementControls">
+
+                    <button
+                        id="moveUp"
+                        class="controlButton"
+                    >
+                        ▲
+                    </button>
+
+                    <div>
+
+                        <button
+                            id="moveLeft"
+                            class="controlButton"
+                        >
+                            ◀
+                        </button>
+
+                        <button
+                            id="moveDown"
+                            class="controlButton"
+                        >
+                            ▼
+                        </button>
+
+                        <button
+                            id="moveRight"
+                            class="controlButton"
+                        >
+                            ▶
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div class="actionControls">
+
+                    <button
+                        id="sprintButton"
+                        class="actionButton"
+                    >
+                        🏃
+                    </button>
+
+                    <button
+                        id="flashlightButton"
+                        class="actionButton"
+                    >
+                        🔦
+                    </button>
+
+                    <button
+                        id="interactButton"
+                        class="actionButton"
+                    >
+                        ✋
+                    </button>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================
+         JOIN REQUEST
+    ========================== -->
+
+    <div
+        id="requestModal"
+        class="modal"
+    >
+
+        <div class="modalCard">
+
+            <div class="modalTitle">
+                JOIN REQUEST
+            </div>
+
+            <div
+                id="requestPlayerName"
+                class="requestPlayerName"
+            >
+                Player wants to join
+            </div>
+
+
+            <button
+                class="acceptButton"
+                onclick="acceptJoinRequest()"
+            >
+                ACCEPT
+            </button>
+
+
+            <button
+                class="rejectButton"
+                onclick="rejectJoinRequest()"
+            >
+                REJECT
+            </button>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================
+         ERROR / MESSAGE
+    ========================== -->
+
+    <div
+        id="toast"
+        class="toast"
+    ></div>
+
+</div>
+
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script src="client.js"></script>
+
+</body>
+
+</html>
