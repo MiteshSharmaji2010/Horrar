@@ -1,82 +1,101 @@
 /* =========================================================
    KILLER ESCAPE 07
    CLIENT.JS
+   Multiplayer / Lobby / Game Controller
    ========================================================= */
 
 "use strict";
+
+/* =========================================================
+   SOCKET
+   ========================================================= */
 
 const socket = io();
 
 let roomCode = "";
 let roomData = null;
 let myPlayer = null;
-let ready = false;
-let killerMode = "random";
 
-let gameStarted = false;
+let killerMode = "random";
+let ready = false;
+
+let gameStartedFromServer = false;
 
 
 /* =========================================================
-   HELPERS
+   CONNECTION
    ========================================================= */
 
-function $(id) {
-    return document.getElementById(id);
-}
+socket.on("connect", () => {
+
+    const status =
+        document.getElementById("connectionStatus");
+
+    if (status) {
+        status.textContent =
+            "CONNECTED";
+        status.style.color =
+            "#2ecc71";
+    }
+
+});
+
+
+socket.on("disconnect", () => {
+
+    const status =
+        document.getElementById("connectionStatus");
+
+    if (status) {
+        status.textContent =
+            "DISCONNECTED";
+        status.style.color =
+            "#e74c3c";
+    }
+
+});
+
+
+/* =========================================================
+   SCREEN SYSTEM
+   ========================================================= */
 
 function showScreen(id) {
 
-    document.querySelectorAll(".screen").forEach(screen => {
-        screen.classList.remove("active");
-    });
+    document
+        .querySelectorAll(".screen")
+        .forEach(screen => {
+            screen.classList.remove("active");
+        });
 
-    const screen = $(id);
+    const target =
+        document.getElementById(id);
 
-    if (screen) {
-        screen.classList.add("active");
+    if (target) {
+        target.classList.add("active");
     }
+
 }
 
 
-function escapeHTML(value) {
-
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
-
+/* =========================================================
+   PLAYER NAME
+   ========================================================= */
 
 function getPlayerName() {
 
-    const input = $("playerName");
+    const input =
+        document.getElementById("playerName");
 
     if (!input) {
         return "Player";
     }
 
-    return input.value.trim() || "Player";
-}
+    const name =
+        input.value.trim();
 
+    return name || "Player";
 
-function showToast(message) {
-
-    const toast = $("toast");
-
-    if (!toast) {
-        return;
-    }
-
-    toast.textContent = message;
-    toast.classList.add("show");
-
-    clearTimeout(toast._timer);
-
-    toast._timer = setTimeout(() => {
-        toast.classList.remove("show");
-    }, 2500);
 }
 
 
@@ -85,12 +104,46 @@ function showToast(message) {
    ========================================================= */
 
 function openCreate() {
+
     showScreen("createScreen");
+
 }
 
 
 function openJoin() {
+
     showScreen("joinScreen");
+
+}
+
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+
+function showToast(message) {
+
+    const toast =
+        document.getElementById("toast");
+
+    if (!toast) return;
+
+    toast.textContent =
+        message;
+
+    toast.classList.add("show");
+
+    clearTimeout(
+        window.__toastTimer
+    );
+
+    window.__toastTimer =
+        setTimeout(() => {
+
+            toast.classList.remove("show");
+
+        }, 2500);
+
 }
 
 
@@ -100,24 +153,39 @@ function openJoin() {
 
 function selectKillerMode(mode) {
 
-    killerMode = mode;
+    killerMode =
+        mode === "choose"
+            ? "choose"
+            : "random";
 
-    const randomButton = $("randomKillerButton");
-    const chooseButton = $("chooseKillerButton");
+    const randomButton =
+        document.getElementById(
+            "randomKillerButton"
+        );
+
+    const chooseButton =
+        document.getElementById(
+            "chooseKillerButton"
+        );
 
     if (randomButton) {
+
         randomButton.classList.toggle(
             "selected",
-            mode === "random"
+            killerMode === "random"
         );
+
     }
 
     if (chooseButton) {
+
         chooseButton.classList.toggle(
             "selected",
-            mode === "choose"
+            killerMode === "choose"
         );
+
     }
+
 }
 
 
@@ -127,7 +195,10 @@ function selectKillerMode(mode) {
 
 function createRoom() {
 
-    const passwordInput = $("createPassword");
+    const passwordInput =
+        document.getElementById(
+            "createPassword"
+        );
 
     const password =
         passwordInput
@@ -136,20 +207,22 @@ function createRoom() {
 
     if (!password) {
 
-        showToast("ENTER ROOM PASSWORD");
-
-        if (passwordInput) {
-            passwordInput.focus();
-        }
+        showToast(
+            "ENTER ROOM PASSWORD"
+        );
 
         return;
     }
 
-    socket.emit("createRoom", {
-        name: getPlayerName(),
-        password: password,
-        killerMode: killerMode
-    });
+    socket.emit(
+        "createRoom",
+        {
+            name: getPlayerName(),
+            password: password,
+            killerMode: killerMode
+        }
+    );
+
 }
 
 
@@ -159,12 +232,21 @@ function createRoom() {
 
 function joinRoom() {
 
-    const codeInput = $("joinCode");
-    const passwordInput = $("joinPassword");
+    const codeInput =
+        document.getElementById(
+            "joinCode"
+        );
+
+    const passwordInput =
+        document.getElementById(
+            "joinPassword"
+        );
 
     const code =
         codeInput
-            ? codeInput.value.trim().toUpperCase()
+            ? codeInput.value
+                .trim()
+                .toUpperCase()
             : "";
 
     const password =
@@ -173,20 +255,32 @@ function joinRoom() {
             : "";
 
     if (!code) {
-        showToast("ENTER ROOM CODE");
+
+        showToast(
+            "ENTER ROOM CODE"
+        );
+
         return;
     }
 
     if (!password) {
-        showToast("ENTER ROOM PASSWORD");
+
+        showToast(
+            "ENTER PASSWORD"
+        );
+
         return;
     }
 
-    socket.emit("joinRoom", {
-        code: code,
-        password: password,
-        name: getPlayerName()
-    });
+    socket.emit(
+        "joinRoom",
+        {
+            code: code,
+            password: password,
+            name: getPlayerName()
+        }
+    );
+
 }
 
 
@@ -194,204 +288,281 @@ function joinRoom() {
    ROOM CREATED
    ========================================================= */
 
-socket.on("roomCreated", data => {
+socket.on(
+    "roomCreated",
+    data => {
 
-    roomCode = data.code || "";
+        roomCode =
+            data.code || "";
 
-    showScreen("lobbyScreen");
+        showScreen(
+            "lobbyScreen"
+        );
 
-    showToast(
-        "ROOM CREATED: " + roomCode
-    );
-});
+        showToast(
+            "ROOM CREATED: " +
+            roomCode
+        );
+
+    }
+);
 
 
 /* =========================================================
    ROOM JOINED
    ========================================================= */
 
-socket.on("joinedRoom", data => {
+socket.on(
+    "joinedRoom",
+    data => {
 
-    roomCode = data.code || "";
+        roomCode =
+            data.code || "";
 
-    showScreen("lobbyScreen");
+        showScreen(
+            "lobbyScreen"
+        );
 
-    showToast("JOINED ROOM");
-});
+        showToast(
+            "JOINED ROOM"
+        );
+
+    }
+);
 
 
 /* =========================================================
    ROOM UPDATE
    ========================================================= */
 
-socket.on("room:update", room => {
+socket.on(
+    "room:update",
+    room => {
 
-    if (!room) {
-        return;
+        if (!room) return;
+
+        roomData =
+            room;
+
+        roomCode =
+            room.code || roomCode;
+
+        updateLobby(
+            room
+        );
+
     }
-
-    roomData = room;
-    roomCode = room.code || roomCode;
-
-    updateLobby(room);
-});
+);
 
 
 /* =========================================================
-   LOBBY UPDATE
+   UPDATE LOBBY
    ========================================================= */
 
 function updateLobby(room) {
 
-    const roomCodeText = $("roomCodeText");
-
-    if (roomCodeText) {
-        roomCodeText.textContent =
-            room.code || "------";
-    }
-
+    const roomCodeText =
+        document.getElementById(
+            "roomCodeText"
+        );
 
     const playerCountText =
-        $("playerCountText");
+        document.getElementById(
+            "playerCountText"
+        );
+
+    if (roomCodeText) {
+
+        roomCodeText.textContent =
+            room.code || "------";
+
+    }
+
+    const players =
+        Array.isArray(room.players)
+            ? room.players
+            : [];
 
     if (playerCountText) {
 
-        const count =
-            Array.isArray(room.players)
-                ? room.players.length
-                : 0;
-
         playerCountText.textContent =
-            count + "/9";
+            players.length + "/9";
+
+    }
+
+    const list =
+        document.getElementById(
+            "playersList"
+        );
+
+    if (list) {
+
+        list.innerHTML = "";
+
+        players.forEach(
+            playerData => {
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+                card.className =
+                    "playerCard";
+
+                if (
+                    playerData.role ===
+                    "killer"
+                ) {
+
+                    card.classList.add(
+                        "killer"
+                    );
+
+                }
+
+                if (
+                    playerData.ready
+                ) {
+
+                    card.classList.add(
+                        "ready"
+                    );
+
+                }
+
+                const avatar =
+                    playerData.role ===
+                    "killer"
+                        ? "🔪"
+                        : "👤";
+
+                const status =
+                    playerData.role ===
+                    "killer"
+                        ? "KILLER"
+                        : playerData.ready
+                            ? "READY"
+                            : "WAITING";
+
+                card.innerHTML = `
+
+                    <div class="playerAvatar">
+                        ${avatar}
+                    </div>
+
+                    <div>
+
+                        <div class="playerName">
+                            ${escapeHTML(
+                                playerData.name ||
+                                "Player"
+                            )}
+                        </div>
+
+                        <div class="playerDetails">
+                            ${escapeHTML(
+                                playerData.character ||
+                                "Survivor"
+                            )}
+                            •
+                            ${escapeHTML(
+                                playerData.costume ||
+                                "Casual"
+                            )}
+                        </div>
+
+                    </div>
+
+                    <div class="playerStatus">
+                        ${status}
+                    </div>
+
+                `;
+
+                list.appendChild(
+                    card
+                );
+
+                if (
+                    playerData.id ===
+                    socket.id
+                ) {
+
+                    myPlayer =
+                        playerData;
+
+                    ready =
+                        !!playerData.ready;
+
+                    updateReadyButton();
+
+                }
+
+            }
+        );
+
+    }
+
+
+    const modeText =
+        document.getElementById(
+            "killerModeText"
+        );
+
+    if (modeText) {
+
+        modeText.textContent =
+            room.killerMode === "choose"
+                ? "CHOOSE KILLER"
+                : "RANDOM KILLER";
+
     }
 
 
     const gamePlayerCount =
-        $("gamePlayerCount");
+        document.getElementById(
+            "gamePlayerCount"
+        );
 
     if (gamePlayerCount) {
 
-        const count =
-            Array.isArray(room.players)
-                ? room.players.length
-                : 0;
-
         gamePlayerCount.textContent =
-            count;
+            players.length;
+
     }
 
-
-    const killerModeText =
-        $("killerModeText");
-
-    if (killerModeText) {
-
-        killerModeText.textContent =
-            room.killerMode === "choose"
-                ? "CHOOSE KILLER"
-                : "RANDOM KILLER";
-    }
+}
 
 
-    const list =
-        $("playersList");
+/* =========================================================
+   HTML ESCAPE
+   ========================================================= */
 
-    if (!list) {
-        return;
-    }
+function escapeHTML(value) {
 
-    list.innerHTML = "";
-
-
-    if (!Array.isArray(room.players)) {
-        return;
-    }
-
-
-    room.players.forEach(p => {
-
-        const card =
-            document.createElement("div");
-
-        card.className = "playerCard";
-
-
-        if (p.role === "killer") {
-            card.classList.add("killer");
-        }
-
-
-        if (p.ready) {
-            card.classList.add("ready");
-        }
-
-
-        const avatar =
-            p.role === "killer"
-                ? "🔪"
-                : "👤";
-
-
-        const status =
-            p.role === "killer"
-                ? "KILLER"
-                : p.ready
-                    ? "READY"
-                    : "WAITING";
-
-
-        card.innerHTML = `
-            <div class="playerAvatar">
-                ${avatar}
-            </div>
-
-            <div>
-                <div class="playerName">
-                    ${escapeHTML(p.name || "Player")}
-                </div>
-
-                <div class="playerDetails">
-                    ${escapeHTML(p.character || "Alex")}
-                    •
-                    ${escapeHTML(p.costume || "Casual")}
-                </div>
-            </div>
-
-            <div class="playerStatus">
-                ${status}
-            </div>
-        `;
-
-
-        list.appendChild(card);
-
-
-        if (p.id === socket.id) {
-
-            myPlayer = p;
-
-            ready =
-                Boolean(p.ready);
-        }
-
-    });
-
-
-    const readyButton =
-        $("readyButton");
-
-    if (readyButton) {
-
-        readyButton.textContent =
-            ready
-                ? "READY ✓"
-                : "READY";
-
-        readyButton.classList.toggle(
-            "active",
-            ready
+    return String(value ?? "")
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
         );
-    }
+
 }
 
 
@@ -402,11 +573,11 @@ function updateLobby(room) {
 function changeCharacter() {
 
     const select =
-        $("characterSelect");
+        document.getElementById(
+            "characterSelect"
+        );
 
-    if (!select) {
-        return;
-    }
+    if (!select) return;
 
     socket.emit(
         "changeCharacter",
@@ -414,8 +585,9 @@ function changeCharacter() {
     );
 
     showToast(
-        "CHARACTER: " + select.value
+        "CHARACTER SELECTED"
     );
+
 }
 
 
@@ -426,11 +598,11 @@ function changeCharacter() {
 function changeCostume() {
 
     const select =
-        $("costumeSelect");
+        document.getElementById(
+            "costumeSelect"
+        );
 
-    if (!select) {
-        return;
-    }
+    if (!select) return;
 
     socket.emit(
         "changeCostume",
@@ -438,8 +610,9 @@ function changeCostume() {
     );
 
     showToast(
-        "COSTUME: " + select.value
+        "COSTUME SELECTED"
     );
+
 }
 
 
@@ -449,43 +622,55 @@ function changeCostume() {
 
 function toggleReady() {
 
-    ready = !ready;
+    ready =
+        !ready;
 
     socket.emit(
         "ready",
         ready
     );
 
+    updateReadyButton();
+
+}
+
+
+function updateReadyButton() {
 
     const button =
-        $("readyButton");
-
-    if (button) {
-
-        button.textContent =
-            ready
-                ? "READY ✓"
-                : "READY";
-
-        button.classList.toggle(
-            "active",
-            ready
+        document.getElementById(
+            "readyButton"
         );
-    }
+
+    if (!button) return;
+
+    button.textContent =
+        ready
+            ? "READY ✓"
+            : "READY";
+
+    button.classList.toggle(
+        "active",
+        ready
+    );
+
 }
 
 
 /* =========================================================
-   KILLER REQUEST
+   REQUEST KILLER
    ========================================================= */
 
 function requestKiller() {
 
-    socket.emit("chooseKiller");
+    socket.emit(
+        "chooseKiller"
+    );
 
     showToast(
         "KILLER REQUEST SENT"
     );
+
 }
 
 
@@ -495,7 +680,19 @@ function requestKiller() {
 
 function startGame() {
 
-    socket.emit("startGame");
+    if (!roomCode) {
+
+        showToast(
+            "CREATE OR JOIN A ROOM FIRST"
+        );
+
+        return;
+    }
+
+    socket.emit(
+        "startGame"
+    );
+
 }
 
 
@@ -503,96 +700,205 @@ function startGame() {
    SERVER GAME START
    ========================================================= */
 
-socket.on("gameStarted", data => {
+socket.on(
+    "gameStarted",
+    data => {
 
-    gameStarted = true;
+        gameStartedFromServer =
+            true;
 
-    showScreen("gameScreen");
+        showScreen(
+            "gameScreen"
+        );
 
-    setTimeout(() => {
+        const count =
+            data &&
+            Array.isArray(data.players)
+                ? data.players.length
+                : (
+                    roomData &&
+                    Array.isArray(
+                        roomData.players
+                    )
+                        ? roomData.players.length
+                        : 1
+                );
+
+        const countElement =
+            document.getElementById(
+                "gamePlayerCount"
+            );
+
+        if (countElement) {
+
+            countElement.textContent =
+                count;
+
+        }
+
+
+        const me =
+            data &&
+            Array.isArray(data.players)
+                ? data.players.find(
+                    p =>
+                        p.id ===
+                        socket.id
+                )
+                : null;
+
+        if (me) {
+
+            myPlayer =
+                me;
+
+            const role =
+                document.getElementById(
+                    "gameRole"
+                );
+
+            if (role) {
+
+                role.textContent =
+                    me.role === "killer"
+                        ? "KILLER"
+                        : "SURVIVOR";
+
+            }
+
+        }
+
+
+        /*
+         * IMPORTANT:
+         * Start 3D only after the game screen
+         * becomes visible.
+         */
+
+        setTimeout(
+            () => {
+
+                if (
+                    typeof launch3DGame ===
+                    "function"
+                ) {
+
+                    launch3DGame(
+                        data || {}
+                    );
+
+                }
+                else if (
+                    typeof start3DGame ===
+                    "function"
+                ) {
+
+                    start3DGame(
+                        data || {}
+                    );
+
+                }
+                else {
+
+                    console.error(
+                        "game3d.js not loaded"
+                    );
+
+                    showToast(
+                        "3D GAME FILE NOT LOADED"
+                    );
+
+                }
+
+            },
+            100
+        );
+
+    }
+);
+
+
+/* =========================================================
+   OPTIONAL SERVER GAME UPDATE
+   ========================================================= */
+
+socket.on(
+    "game:update",
+    data => {
 
         if (
-            typeof launch3DGame ===
+            typeof updateNetworkPlayers ===
             "function"
         ) {
 
-            launch3DGame(data);
-
-        } else {
-
-            console.error(
-                "launch3DGame() not found"
+            updateNetworkPlayers(
+                data
             );
 
-            showToast(
-                "GAME ENGINE NOT LOADED"
-            );
         }
 
-    }, 100);
-});
+    }
+);
 
 
 /* =========================================================
-   ERROR
+   GAME ERROR
    ========================================================= */
 
-socket.on("errorMessage", message => {
+socket.on(
+    "errorMessage",
+    message => {
 
-    showToast(
-        message || "Something went wrong"
-    );
+        showToast(
+            message
+        );
 
+        const joinMessage =
+            document.getElementById(
+                "joinMessage"
+            );
 
-    const joinMessage =
-        $("joinMessage");
+        if (joinMessage) {
 
-    if (joinMessage) {
+            joinMessage.textContent =
+                message;
 
-        joinMessage.textContent =
-            message || "";
+        }
+
     }
-});
+);
 
 
 /* =========================================================
-   CONNECTION
+   SERVER ERROR
    ========================================================= */
 
-socket.on("connect", () => {
+socket.on(
+    "connect_error",
+    error => {
 
-    const status =
-        $("connectionStatus");
+        console.error(
+            "Socket connection error:",
+            error
+        );
 
-    if (status) {
+        const status =
+            document.getElementById(
+                "connectionStatus"
+            );
 
-        status.textContent =
-            "● ONLINE";
+        if (status) {
 
-        status.style.color =
-            "#36d16b";
+            status.textContent =
+                "SERVER ERROR";
+
+            status.style.color =
+                "#e74c3c";
+
+        }
+
     }
-});
-
-
-socket.on("disconnect", () => {
-
-    const status =
-        $("connectionStatus");
-
-    if (status) {
-
-        status.textContent =
-            "● DISCONNECTED";
-
-        status.style.color =
-            "#d33";
-    }
-
-    showToast(
-        "SERVER DISCONNECTED"
-    );
-});
+);
 
 
 /* =========================================================
@@ -602,57 +908,89 @@ socket.on("disconnect", () => {
 function leaveRoom() {
 
     try {
-        socket.emit("leaveRoom");
+
+        socket.emit(
+            "leaveRoom"
+        );
+
     }
     catch (error) {
-        console.log(error);
+
+        console.log(
+            "Leave error",
+            error
+        );
+
     }
 
-    roomCode = "";
-    roomData = null;
-    myPlayer = null;
-    ready = false;
+    roomCode =
+        "";
 
-    showScreen("homeScreen");
+    roomData =
+        null;
+
+    myPlayer =
+        null;
+
+    ready =
+        false;
+
+    if (
+        typeof stop3DGame ===
+        "function"
+    ) {
+
+        stop3DGame();
+
+    }
+
+    showScreen(
+        "homeScreen"
+    );
+
 }
 
 
 /* =========================================================
-   OVERRIDE LEAVE BUTTON
+   BACK BUTTON SUPPORT
    ========================================================= */
 
-document.addEventListener(
-    "DOMContentLoaded",
+window.addEventListener(
+    "beforeunload",
     () => {
 
-        document
-            .querySelectorAll(".leaveButton")
-            .forEach(button => {
+        try {
 
-                button.onclick =
-                    leaveRoom;
+            socket.disconnect();
 
-            });
+        }
+        catch (e) {}
 
     }
 );
 
 
 /* =========================================================
-   GLOBAL EXPORTS
+   EXPORT GLOBAL FUNCTIONS
    ========================================================= */
 
-window.openCreate = openCreate;
-window.openJoin = openJoin;
+window.showScreen =
+    showScreen;
 
-window.selectKillerMode =
-    selectKillerMode;
+window.openCreate =
+    openCreate;
+
+window.openJoin =
+    openJoin;
 
 window.createRoom =
     createRoom;
 
 window.joinRoom =
     joinRoom;
+
+window.selectKillerMode =
+    selectKillerMode;
 
 window.changeCharacter =
     changeCharacter;
@@ -669,14 +1007,27 @@ window.requestKiller =
 window.startGame =
     startGame;
 
-window.showScreen =
-    showScreen;
-
-window.showToast =
-    showToast;
+window.leaveRoom =
+    leaveRoom;
 
 window.getPlayerName =
     getPlayerName;
 
-window.leaveRoom =
-    leaveRoom;
+window.showToast =
+    showToast;
+
+
+/* =========================================================
+   INITIAL UI
+   ========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        showScreen(
+            "homeScreen"
+        );
+
+    }
+);
