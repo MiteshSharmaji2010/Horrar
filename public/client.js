@@ -1,9 +1,85 @@
 const socket = io();
 
-let currentRoom = null;
-let currentPlayer = null;
+let roomCode = null;
+let myPlayer = null;
+let roomData = null;
+
 let killerMode = "random";
-let isReady = false;
+let ready = false;
+
+let canvas;
+let ctx;
+
+let gameRunning = false;
+
+const keys = {};
+
+let player = {
+    x: 900,
+    y: 650,
+    speed: 2.4,
+    health: 100,
+    lives: 3
+};
+
+let otherPlayers = {};
+
+let collectedItems = [];
+
+let mansionItems = [
+    {
+        id: "key_red",
+        type: "key",
+        name: "RED KEY",
+        x: 330,
+        y: 250,
+        collected: false
+    },
+    {
+        id: "key_blue",
+        type: "key",
+        name: "BLUE KEY",
+        x: 1450,
+        y: 320,
+        collected: false
+    },
+    {
+        id: "fuse",
+        type: "fuse",
+        name: "FUSE",
+        x: 1150,
+        y: 900,
+        collected: false
+    },
+    {
+        id: "fuel",
+        type: "fuel",
+        name: "HELICOPTER FUEL",
+        x: 1700,
+        y: 1050,
+        collected: false
+    }
+];
+
+let escapeDoor = {
+    x: 1800,
+    y: 650,
+    unlocked: false
+};
+
+let killer = {
+    x: 1400,
+    y: 650,
+    speed: 1.5,
+    active: true
+};
+
+let flashlight = true;
+
+let jumpscareCooldown = 0;
+
+let messageTimer = 0;
+let messageText = "";
 
 
 // =====================================================
@@ -28,7 +104,7 @@ function showScreen(id) {
 
 
 // =====================================================
-// TOAST
+// MESSAGE
 // =====================================================
 
 function showToast(message) {
@@ -36,20 +112,20 @@ function showToast(message) {
     const toast =
         document.getElementById("toast");
 
+    if (!toast) return;
+
     toast.textContent = message;
 
     toast.classList.add("show");
 
     setTimeout(() => {
-
         toast.classList.remove("show");
-
-    }, 3000);
+    }, 2500);
 }
 
 
 // =====================================================
-// PLAYER NAME
+// NAME
 // =====================================================
 
 function getPlayerName() {
@@ -57,66 +133,30 @@ function getPlayerName() {
     const input =
         document.getElementById("playerName");
 
-    let name =
-        input.value.trim();
-
-    if (!name) {
-
-        name = "Player";
-
-    }
-
-    return name.substring(0, 20);
+    return (
+        input.value.trim() ||
+        "Player"
+    );
 }
 
 
 // =====================================================
-// CREATE SCREEN
+// CREATE
 // =====================================================
 
 function openCreate() {
 
-    const name =
-        getPlayerName();
-
-    if (!name) {
-
-        showToast(
-            "Enter your name first."
-        );
-
-        return;
-
-    }
-
-    showScreen(
-        "createScreen"
-    );
+    showScreen("createScreen");
 }
 
 
 // =====================================================
-// JOIN SCREEN
+// JOIN
 // =====================================================
 
 function openJoin() {
 
-    const name =
-        getPlayerName();
-
-    if (!name) {
-
-        showToast(
-            "Enter your name first."
-        );
-
-        return;
-
-    }
-
-    showScreen(
-        "joinScreen"
-    );
+    showScreen("joinScreen");
 }
 
 
@@ -128,39 +168,23 @@ function selectKillerMode(mode) {
 
     killerMode = mode;
 
-    const randomButton =
-        document.getElementById(
+    document
+        .getElementById(
             "randomKillerButton"
+        )
+        .classList.toggle(
+            "selected",
+            mode === "random"
         );
 
-    const chooseButton =
-        document.getElementById(
+    document
+        .getElementById(
             "chooseKillerButton"
+        )
+        .classList.toggle(
+            "selected",
+            mode === "choose"
         );
-
-    randomButton.classList.remove(
-        "selected"
-    );
-
-    chooseButton.classList.remove(
-        "selected"
-    );
-
-
-    if (mode === "random") {
-
-        randomButton.classList.add(
-            "selected"
-        );
-
-    } else {
-
-        chooseButton.classList.add(
-            "selected"
-        );
-
-    }
-
 }
 
 
@@ -172,41 +196,31 @@ function createRoom() {
 
     const password =
         document
-        .getElementById(
-            "createPassword"
-        )
-        .value.trim();
-
+            .getElementById(
+                "createPassword"
+            )
+            .value.trim();
 
     if (!password) {
 
         showToast(
-            "Enter a room password."
+            "Enter room password"
         );
 
         return;
-
     }
-
-
-    const name =
-        getPlayerName();
-
 
     socket.emit(
         "createRoom",
         {
+            name:
+                getPlayerName(),
 
-            name: name,
+            password,
 
-            password: password,
-
-            killerMode:
-                killerMode
-
+            killerMode
         }
     );
-
 }
 
 
@@ -218,59 +232,29 @@ function joinRoom() {
 
     const code =
         document
-        .getElementById(
-            "joinCode"
-        )
-        .value
-        .trim()
-        .toUpperCase();
-
+            .getElementById(
+                "joinCode"
+            )
+            .value
+            .trim()
+            .toUpperCase();
 
     const password =
         document
-        .getElementById(
-            "joinPassword"
-        )
-        .value
-        .trim();
-
-
-    if (!code) {
-
-        showToast(
-            "Enter room code."
-        );
-
-        return;
-
-    }
-
-
-    if (!password) {
-
-        showToast(
-            "Enter room password."
-        );
-
-        return;
-
-    }
-
+            .getElementById(
+                "joinPassword"
+            )
+            .value.trim();
 
     socket.emit(
         "joinRoom",
         {
-
-            code: code,
-
-            password: password,
-
+            code,
+            password,
             name:
                 getPlayerName()
-
         }
     );
-
 }
 
 
@@ -282,42 +266,39 @@ socket.on(
     "roomCreated",
     data => {
 
-        currentRoom =
+        roomCode =
             data.code;
-
-        showToast(
-            "Room created: " +
-            data.code
-        );
 
         showScreen(
             "lobbyScreen"
         );
 
+        showToast(
+            "Room created: " +
+            data.code
+        );
     }
 );
 
 
 // =====================================================
-// JOINED ROOM
+// ROOM JOINED
 // =====================================================
 
 socket.on(
     "joinedRoom",
     data => {
 
-        currentRoom =
+        roomCode =
             data.code;
-
-        showToast(
-            "Joined room " +
-            data.code
-        );
 
         showScreen(
             "lobbyScreen"
         );
 
+        showToast(
+            "Joined room"
+        );
     }
 );
 
@@ -330,24 +311,22 @@ socket.on(
     "room:update",
     room => {
 
-        currentRoom =
+        roomData =
+            room;
+
+        roomCode =
             room.code;
 
         updateLobby(room);
-
     }
 );
 
 
 // =====================================================
-// UPDATE LOBBY
+// LOBBY
 // =====================================================
 
 function updateLobby(room) {
-
-    const players =
-        room.players || [];
-
 
     document
         .getElementById(
@@ -356,176 +335,83 @@ function updateLobby(room) {
         .textContent =
         room.code;
 
-
     document
         .getElementById(
             "playerCountText"
         )
         .textContent =
-        players.length +
-        "/9";
-
+        `${room.players.length}/9`;
 
     const list =
         document.getElementById(
             "playersList"
         );
 
-
     list.innerHTML = "";
 
+    room.players.forEach(p => {
 
-    players.forEach(
-        player => {
+        const card =
+            document.createElement(
+                "div"
+            );
 
-            const card =
-                document.createElement(
-                    "div"
-                );
+        card.className =
+            "playerCard";
 
-
-            card.className =
-                "playerCard";
-
-
-            if (
-                player.id ===
-                room.host
-            ) {
-
-                card.classList.add(
-                    "host"
-                );
-
-            }
-
-
-            if (
-                player.role ===
+        if (p.role === "killer") {
+            card.classList.add(
                 "killer"
-            ) {
-
-                card.classList.add(
-                    "killer"
-                );
-
-            }
-
-
-            if (player.ready) {
-
-                card.classList.add(
-                    "ready"
-                );
-
-            }
-
-
-            let avatar = "👤";
-
-            if (
-                player.role ===
-                "killer"
-            ) {
-
-                avatar = "🔪";
-
-            } else {
-
-                avatar = "🧍";
-
-            }
-
-
-            let status =
-                "NOT READY";
-
-            let statusClass =
-                "";
-
-
-            if (player.ready) {
-
-                status =
-                    "READY";
-
-                statusClass =
-                    "readyText";
-
-            }
-
-
-            if (
-                player.role ===
-                "killer"
-            ) {
-
-                status =
-                    "KILLER";
-
-                statusClass =
-                    "killerText";
-
-            }
-
-
-            const hostText =
-                player.id === room.host
-                    ? " • HOST"
-                    : "";
-
-
-            card.innerHTML = `
-
-                <div class="playerAvatar">
-                    ${avatar}
-                </div>
-
-                <div>
-
-                    <div class="playerName">
-                        ${escapeHTML(player.name)}
-                    </div>
-
-                    <div class="playerDetails">
-                        ${escapeHTML(player.character)}
-                        ${hostText}
-                    </div>
-
-                </div>
-
-                <div class="playerStatus ${statusClass}">
-                    ${status}
-                </div>
-
-            `;
-
-
-            list.appendChild(card);
-
+            );
         }
-    );
 
+        if (p.ready) {
+            card.classList.add(
+                "ready"
+            );
+        }
 
-    const me =
-        players.find(
-            player =>
-                player.id === socket.id
-        );
+        card.innerHTML = `
 
+            <div class="playerAvatar">
+                ${p.role === "killer" ? "🔪" : "👤"}
+            </div>
 
-    currentPlayer = me || null;
+            <div>
 
+                <div class="playerName">
+                    ${escapeHTML(p.name)}
+                </div>
 
-    if (me) {
+                <div class="playerDetails">
+                    ${escapeHTML(p.character)}
+                    •
+                    ${escapeHTML(p.costume)}
+                </div>
 
-        isReady =
-            me.ready;
+            </div>
 
-        updateReadyButton();
+            <div class="playerStatus">
+                ${
+                    p.role === "killer"
+                        ? "KILLER"
+                        : p.ready
+                            ? "READY"
+                            : "WAITING"
+                }
+            </div>
 
-    }
+        `;
 
+        list.appendChild(card);
+
+        if (
+            p.id === socket.id
+        ) {
+
+            myPlayer = p;
+        }
+    });
 
     document
         .getElementById(
@@ -535,61 +421,6 @@ function updateLobby(room) {
         room.killerMode === "random"
             ? "RANDOM KILLER"
             : "CHOOSE KILLER";
-
-
-    const killerButton =
-        document.getElementById(
-            "killerRequestButton"
-        );
-
-
-    if (
-        room.killerMode ===
-        "random"
-    ) {
-
-        killerButton.style.display =
-            "none";
-
-    } else {
-
-        killerButton.style.display =
-            "block";
-
-    }
-
-
-    const startButton =
-        document.getElementById(
-            "startButton"
-        );
-
-
-    if (
-        room.host === socket.id
-    ) {
-
-        startButton.style.display =
-            "block";
-
-    } else {
-
-        startButton.style.display =
-            "none";
-
-    }
-
-
-    if (
-        me &&
-        me.role === "killer"
-    ) {
-
-        killerButton.textContent =
-            "YOU ARE KILLER";
-
-    }
-
 }
 
 
@@ -600,27 +431,11 @@ function updateLobby(room) {
 function escapeHTML(text) {
 
     return String(text)
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
 
 
@@ -630,70 +445,17 @@ function escapeHTML(text) {
 
 function changeCharacter() {
 
-    const select =
-        document.getElementById(
-            "characterSelect"
-        );
-
+    const character =
+        document
+            .getElementById(
+                "characterSelect"
+            )
+            .value;
 
     socket.emit(
         "changeCharacter",
-        select.value
+        character
     );
-
-
-    updateCharacterDescription(
-        select.value
-    );
-
-}
-
-
-document
-    .getElementById(
-        "characterSelect"
-    )
-    .addEventListener(
-        "change",
-        event => {
-
-            updateCharacterDescription(
-                event.target.value
-            );
-
-        }
-    );
-
-
-function updateCharacterDescription(
-    character
-) {
-
-    const descriptions = {
-
-        Scout:
-            "Fast survivor with improved sprint.",
-
-        Medic:
-            "Can recover health faster.",
-
-        Engineer:
-            "Better at repairing objectives.",
-
-        Tracker:
-            "Better at finding clues and footprints."
-
-    };
-
-
-    document
-        .getElementById(
-            "characterDescription"
-        )
-        .textContent =
-        descriptions[character] ||
-        "";
-
 }
 
 
@@ -703,53 +465,32 @@ function updateCharacterDescription(
 
 function toggleReady() {
 
-    isReady =
-        !isReady;
+    ready = !ready;
 
     socket.emit(
         "ready",
-        isReady
+        ready
     );
-
-
-    updateReadyButton();
-
-}
-
-
-function updateReadyButton() {
 
     const button =
         document.getElementById(
             "readyButton"
         );
 
+    button.textContent =
+        ready
+            ? "READY ✓"
+            : "READY";
 
-    if (isReady) {
-
-        button.textContent =
-            "READY ✓";
-
-        button.classList.add(
-            "active"
-        );
-
-    } else {
-
-        button.textContent =
-            "READY";
-
-        button.classList.remove(
-            "active"
-        );
-
-    }
-
+    button.classList.toggle(
+        "active",
+        ready
+    );
 }
 
 
 // =====================================================
-// REQUEST KILLER
+// KILLER REQUEST
 // =====================================================
 
 function requestKiller() {
@@ -758,11 +499,14 @@ function requestKiller() {
         "chooseKiller"
     );
 
+    showToast(
+        "Killer request changed"
+    );
 }
 
 
 // =====================================================
-// START GAME
+// START
 // =====================================================
 
 function startGame() {
@@ -770,178 +514,120 @@ function startGame() {
     socket.emit(
         "startGame"
     );
-
 }
 
 
 // =====================================================
-// GAME STARTED
+// GAME START
 // =====================================================
 
 socket.on(
     "gameStarted",
     data => {
 
-        showToast(
-            "GAME STARTED"
-        );
-
-
         showScreen(
             "gameScreen"
         );
 
-
-        startGameWorld(
+        startHorrorGame(
             data
         );
-
     }
 );
 
 
 // =====================================================
-// SERVER ERROR
+// ERROR
 // =====================================================
 
 socket.on(
     "errorMessage",
     message => {
 
-        showToast(
-            message
-        );
+        showToast(message);
 
-        const joinMessage =
+        const msg =
             document.getElementById(
                 "joinMessage"
             );
 
-
-        if (
-            joinMessage &&
-            document
-                .getElementById(
-                    "joinScreen"
-                )
-                .classList.contains(
-                    "active"
-                )
-        ) {
-
-            joinMessage.textContent =
+        if (msg) {
+            msg.textContent =
                 message;
-
         }
-
     }
 );
 
 
 // =====================================================
-// CONNECTION
+// GAME START
 // =====================================================
 
-socket.on(
-    "connect",
-    () => {
+function startHorrorGame(data) {
 
-        document
-            .getElementById(
-                "connectionStatus"
-            )
-            .textContent =
-            "SERVER ONLINE";
-
-    }
-);
-
-
-socket.on(
-    "disconnect",
-    () => {
-
-        document
-            .getElementById(
-                "connectionStatus"
-            )
-            .textContent =
-            "SERVER OFFLINE";
-
-        showToast(
-            "Connection lost."
-        );
-
-    }
-);
-
-
-// =====================================================
-// LEAVE ROOM
-// =====================================================
-
-function leaveRoom() {
-
-    location.reload();
-
-}
-
-
-// =====================================================
-// SIMPLE GAME WORLD
-// =====================================================
-
-let gameCanvas = null;
-let gameContext = null;
-
-let gameRunning = false;
-
-let playerX = 0;
-let playerY = 0;
-
-let gameKeys = {};
-
-
-// =====================================================
-// START GAME WORLD
-// =====================================================
-
-function startGameWorld(data) {
-
-    gameCanvas =
+    canvas =
         document.getElementById(
             "gameCanvas"
         );
 
-
-    gameContext =
-        gameCanvas.getContext(
+    ctx =
+        canvas.getContext(
             "2d"
         );
 
-
-    resizeGameCanvas();
-
+    resizeCanvas();
 
     window.addEventListener(
         "resize",
-        resizeGameCanvas
+        resizeCanvas
     );
-
 
     gameRunning = true;
 
+    player.x = 900;
+    player.y = 650;
+
+    player.health = 100;
+
+    collectedItems = [];
+
+    otherPlayers = {};
+
+    data.players.forEach(p => {
+
+        otherPlayers[p.id] = {
+            x:
+                900 +
+                Math.random() *
+                300,
+
+            y:
+                500 +
+                Math.random() *
+                300,
+
+            role:
+                p.role,
+
+            name:
+                p.name
+        };
+
+    });
 
     const me =
-        (data.players || [])
-        .find(
-            player =>
-                player.id ===
+        data.players.find(
+            p =>
+                p.id ===
                 socket.id
         );
 
-
     if (me) {
+
+        myPlayer = me;
+
+        player.lives =
+            me.lives || 3;
 
         document
             .getElementById(
@@ -951,31 +637,15 @@ function startGameWorld(data) {
             me.role === "killer"
                 ? "KILLER"
                 : "SURVIVOR";
-
     }
 
-
-    document
-        .getElementById(
-            "gamePlayerCount"
-        )
-        .textContent =
-        (data.players || []).length;
-
-
-    playerX =
-        gameCanvas.width / 2;
-
-    playerY =
-        gameCanvas.height / 2;
-
-
-    setupGameControls();
+    showGameMessage(
+        "FIND THE ITEMS AND ESCAPE THE MANSION"
+    );
 
     requestAnimationFrame(
         gameLoop
     );
-
 }
 
 
@@ -983,50 +653,16 @@ function startGameWorld(data) {
 // RESIZE
 // =====================================================
 
-function resizeGameCanvas() {
+function resizeCanvas() {
 
-    if (!gameCanvas)
+    if (!canvas)
         return;
 
+    canvas.width =
+        window.innerWidth;
 
-    const ratio =
-        Math.min(
-            window.devicePixelRatio || 1,
-            2
-        );
-
-
-    gameCanvas.width =
-        window.innerWidth *
-        ratio;
-
-
-    gameCanvas.height =
-        window.innerHeight *
-        ratio;
-
-
-    gameCanvas.style.width =
-        window.innerWidth + "px";
-
-
-    gameCanvas.style.height =
-        window.innerHeight + "px";
-
-
-    if (gameContext) {
-
-        gameContext.setTransform(
-            ratio,
-            0,
-            0,
-            ratio,
-            0,
-            0
-        );
-
-    }
-
+    canvas.height =
+        window.innerHeight;
 }
 
 
@@ -1036,28 +672,44 @@ function resizeGameCanvas() {
 
 window.addEventListener(
     "keydown",
-    event => {
+    e => {
 
-        gameKeys[event.key.toLowerCase()] =
-            true;
+        keys[
+            e.key.toLowerCase()
+        ] = true;
 
+        if (
+            e.key.toLowerCase() ===
+            "f"
+        ) {
+
+            toggleFlashlight();
+        }
+
+        if (
+            e.key.toLowerCase() ===
+            "e"
+        ) {
+
+            interact();
+        }
     }
 );
 
 
 window.addEventListener(
     "keyup",
-    event => {
+    e => {
 
-        gameKeys[event.key.toLowerCase()] =
-            false;
-
+        keys[
+            e.key.toLowerCase()
+        ] = false;
     }
 );
 
 
 // =====================================================
-// MOBILE CONTROL
+// MOBILE CONTROLS
 // =====================================================
 
 function holdButton(
@@ -1068,125 +720,246 @@ function holdButton(
     const button =
         document.getElementById(id);
 
-
     if (!button)
         return;
 
-
     button.addEventListener(
         "pointerdown",
-        event => {
+        e => {
 
-            event.preventDefault();
+            e.preventDefault();
 
-            gameKeys[key] =
-                true;
-
+            keys[key] = true;
         }
     );
-
 
     button.addEventListener(
         "pointerup",
-        event => {
+        () => {
 
-            event.preventDefault();
-
-            gameKeys[key] =
-                false;
-
+            keys[key] = false;
         }
     );
-
 
     button.addEventListener(
         "pointercancel",
         () => {
 
-            gameKeys[key] =
-                false;
-
+            keys[key] = false;
         }
     );
+}
 
+holdButton(
+    "moveUp",
+    "w"
+);
 
-    button.addEventListener(
-        "pointerleave",
-        () => {
+holdButton(
+    "moveDown",
+    "s"
+);
 
-            gameKeys[key] =
-                false;
+holdButton(
+    "moveLeft",
+    "a"
+);
 
-        }
+holdButton(
+    "moveRight",
+    "d"
+);
+
+holdButton(
+    "sprintButton",
+    "shift"
+);
+
+const flashlightButton =
+    document.getElementById(
+        "flashlightButton"
     );
 
+if (flashlightButton) {
+
+    flashlightButton.onclick =
+        toggleFlashlight;
+}
+
+const interactButton =
+    document.getElementById(
+        "interactButton"
+    );
+
+if (interactButton) {
+
+    interactButton.onclick =
+        interact;
 }
 
 
 // =====================================================
-// GAME CONTROLS
+// FLASHLIGHT
 // =====================================================
 
-function setupGameControls() {
+function toggleFlashlight() {
 
-    holdButton(
-        "moveUp",
-        "w"
+    flashlight =
+        !flashlight;
+
+    showGameMessage(
+        flashlight
+            ? "FLASHLIGHT ON"
+            : "FLASHLIGHT OFF"
+    );
+}
+
+
+// =====================================================
+// INTERACTION
+// =====================================================
+
+function interact() {
+
+    mansionItems.forEach(
+        item => {
+
+            if (
+                item.collected
+            )
+                return;
+
+            const distance =
+                Math.hypot(
+                    player.x - item.x,
+                    player.y - item.y
+                );
+
+            if (
+                distance < 80
+            ) {
+
+                item.collected =
+                    true;
+
+                collectedItems.push(
+                    item.id
+                );
+
+                showGameMessage(
+                    "COLLECTED: " +
+                    item.name
+                );
+
+                checkEscape();
+            }
+        }
     );
 
-    holdButton(
-        "moveDown",
-        "s"
-    );
+    const doorDistance =
+        Math.hypot(
+            player.x -
+            escapeDoor.x,
 
-    holdButton(
-        "moveLeft",
-        "a"
-    );
-
-    holdButton(
-        "moveRight",
-        "d"
-    );
-
-
-    holdButton(
-        "sprintButton",
-        "shift"
-    );
-
-
-    const flashlight =
-        document.getElementById(
-            "flashlightButton"
+            player.y -
+            escapeDoor.y
         );
 
+    if (
+        doorDistance < 100
+    ) {
 
-    flashlight.onclick =
-        () => {
+        if (
+            collectedItems.includes(
+                "key_red"
+            ) &&
+            collectedItems.includes(
+                "key_blue"
+            ) &&
+            collectedItems.includes(
+                "fuse"
+            )
+        ) {
 
-            showToast(
-                "Flashlight toggled"
+            escapeDoor.unlocked =
+                true;
+
+            showGameMessage(
+                "🚪 MAIN DOOR UNLOCKED!"
             );
 
-        };
+            winGame();
+
+        } else {
+
+            showGameMessage(
+                "THE DOOR IS LOCKED"
+            );
+        }
+    }
+}
 
 
-    const interact =
-        document.getElementById(
-            "interactButton"
-        );
+// =====================================================
+// ESCAPE CHECK
+// =====================================================
+
+function checkEscape() {
+
+    if (
+        collectedItems.includes(
+            "key_red"
+        ) &&
+        collectedItems.includes(
+            "key_blue"
+        ) &&
+        collectedItems.includes(
+            "fuse"
+        )
+    ) {
+
+        document
+            .getElementById(
+                "objectiveHUD"
+            )
+            .textContent =
+            "OBJECTIVE: ESCAPE THROUGH THE MAIN DOOR";
+
+    } else {
+
+        document
+            .getElementById(
+                "objectiveHUD"
+            )
+            .textContent =
+            "OBJECTIVE: FIND KEYS AND ITEMS";
+
+    }
+}
 
 
-    interact.onclick =
+// =====================================================
+// WIN
+// =====================================================
+
+function winGame() {
+
+    gameRunning = false;
+
+    showGameMessage(
+        "YOU ESCAPED! 🎉"
+    );
+
+    setTimeout(
         () => {
 
-            showToast(
-                "Searching..."
+            alert(
+                "YOU ESCAPED THE MANSION!"
             );
 
-        };
-
+        },
+        1000
+    );
 }
 
 
@@ -1199,370 +972,705 @@ function gameLoop() {
     if (!gameRunning)
         return;
 
-
     updateGame();
 
     drawGame();
 
-
     requestAnimationFrame(
         gameLoop
     );
-
 }
 
 
 // =====================================================
-// UPDATE GAME
+// UPDATE
 // =====================================================
 
 function updateGame() {
 
-    let speed = 2.5;
-
+    let speed =
+        player.speed;
 
     if (
-        gameKeys["shift"]
+        keys["shift"]
     ) {
 
         speed =
-            4.5;
-
+            4;
     }
-
 
     if (
-        gameKeys["w"] ||
-        gameKeys["arrowup"]
+        keys["w"] ||
+        keys["arrowup"]
     ) {
 
-        playerY -= speed;
-
+        player.y -= speed;
     }
-
 
     if (
-        gameKeys["s"] ||
-        gameKeys["arrowdown"]
+        keys["s"] ||
+        keys["arrowdown"]
     ) {
 
-        playerY += speed;
-
+        player.y += speed;
     }
-
 
     if (
-        gameKeys["a"] ||
-        gameKeys["arrowleft"]
+        keys["a"] ||
+        keys["arrowleft"]
     ) {
 
-        playerX -= speed;
-
+        player.x -= speed;
     }
-
 
     if (
-        gameKeys["d"] ||
-        gameKeys["arrowright"]
+        keys["d"] ||
+        keys["arrowright"]
     ) {
 
-        playerX += speed;
-
+        player.x += speed;
     }
 
-
-    const width =
-        window.innerWidth;
-
-    const height =
-        window.innerHeight;
-
-
-    playerX =
+    player.x =
         Math.max(
-            20,
+            80,
             Math.min(
-                width - 20,
-                playerX
+                1720,
+                player.x
+            )
+        );
+
+    player.y =
+        Math.max(
+            100,
+            Math.min(
+                1150,
+                player.y
             )
         );
 
 
-    playerY =
-        Math.max(
-            20,
-            Math.min(
-                height - 20,
-                playerY
-            )
-        );
+    // killer
 
+    if (
+        myPlayer &&
+        myPlayer.role !==
+        "killer"
+    ) {
+
+        const dx =
+            player.x -
+            killer.x;
+
+        const dy =
+            player.y -
+            killer.y;
+
+        const distance =
+            Math.hypot(
+                dx,
+                dy
+            );
+
+        if (
+            distance < 650
+        ) {
+
+            killer.x +=
+                (dx / distance) *
+                killer.speed;
+
+            killer.y +=
+                (dy / distance) *
+                killer.speed;
+        }
+
+        if (
+            distance < 55
+        ) {
+
+            player.health -=
+                0.35;
+
+            if (
+                player.health <= 0
+            ) {
+
+                player.health = 0;
+
+                triggerJumpscare();
+
+                player.lives--;
+
+                if (
+                    player.lives <= 0
+                ) {
+
+                    gameOver();
+
+                } else {
+
+                    player.health =
+                        100;
+
+                    player.x = 900;
+                    player.y = 650;
+
+                    showGameMessage(
+                        "YOU WERE CAUGHT! LIVES LEFT: " +
+                        player.lives
+                    );
+                }
+            }
+        }
+    }
+
+    updateHUD();
 }
 
 
 // =====================================================
-// DRAW GAME
+// HUD
+// =====================================================
+
+function updateHUD() {
+
+    const healthBar =
+        document.getElementById(
+            "healthBar"
+        );
+
+    if (healthBar) {
+
+        healthBar.style.width =
+            Math.max(
+                0,
+                player.health
+            ) + "%";
+    }
+}
+
+
+// =====================================================
+// DRAW
 // =====================================================
 
 function drawGame() {
 
-    const ctx =
-        gameContext;
-
-
     if (!ctx)
         return;
 
+    const w =
+        canvas.width;
 
-    const width =
-        window.innerWidth;
-
-    const height =
-        window.innerHeight;
-
+    const h =
+        canvas.height;
 
     ctx.clearRect(
         0,
         0,
-        width,
-        height
+        w,
+        h
     );
 
 
-    // DARK WORLD
-
-    const gradient =
-        ctx.createRadialGradient(
-            playerX,
-            playerY,
-            40,
-            playerX,
-            playerY,
-            500
-        );
-
-
-    gradient.addColorStop(
-        0,
-        "#26302a"
-    );
-
-    gradient.addColorStop(
-        0.4,
-        "#101714"
-    );
-
-    gradient.addColorStop(
-        1,
-        "#020303"
-    );
-
+    // WORLD
 
     ctx.fillStyle =
-        gradient;
-
+        "#050807";
 
     ctx.fillRect(
         0,
         0,
-        width,
-        height
+        w,
+        h
     );
 
 
-    // GROUND GRID
+    // Mansion floor
 
-    ctx.strokeStyle =
-        "rgba(80,90,80,0.08)";
+    ctx.fillStyle =
+        "#161512";
 
-    ctx.lineWidth = 1;
-
-
-    const grid = 50;
-
-
-    for (
-        let x = 0;
-        x < width;
-        x += grid
-    ) {
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            x,
-            0
-        );
-
-        ctx.lineTo(
-            x,
-            height
-        );
-
-        ctx.stroke();
-
-    }
+    ctx.fillRect(
+        70,
+        90,
+        1660,
+        1080
+    );
 
 
-    for (
-        let y = 0;
-        y < height;
-        y += grid
-    ) {
+    // Rooms
 
-        ctx.beginPath();
+    drawRoom(
+        100,
+        120,
+        450,
+        300,
+        "BEDROOM"
+    );
 
-        ctx.moveTo(
-            0,
-            y
-        );
+    drawRoom(
+        580,
+        120,
+        500,
+        300,
+        "LIBRARY"
+    );
 
-        ctx.lineTo(
-            width,
-            y
-        );
+    drawRoom(
+        1110,
+        120,
+        560,
+        300,
+        "DINING ROOM"
+    );
 
-        ctx.stroke();
+    drawRoom(
+        100,
+        470,
+        500,
+        330,
+        "HALL"
+    );
 
-    }
+    drawRoom(
+        630,
+        470,
+        450,
+        330,
+        "BASEMENT"
+    );
+
+    drawRoom(
+        1110,
+        470,
+        560,
+        330,
+        "GAME ROOM"
+    );
+
+    drawRoom(
+        100,
+        850,
+        500,
+        280,
+        "STORAGE"
+    );
+
+    drawRoom(
+        630,
+        850,
+        450,
+        280,
+        "SECRET ROOM"
+    );
+
+    drawRoom(
+        1110,
+        850,
+        560,
+        280,
+        "EXIT HALL"
+    );
 
 
-    // TREES / OBJECTS
+    // ITEMS
 
-    for (
-        let x = 80;
-        x < width;
-        x += 180
-    ) {
+    mansionItems.forEach(
+        item => {
 
-        for (
-            let y = 140;
-            y < height;
-            y += 190
-        ) {
+            if (
+                item.collected
+            )
+                return;
 
-            drawTree(
-                ctx,
-                x,
-                y
+            drawItem(
+                item
             );
-
         }
+    );
+
+
+    // EXIT
+
+    ctx.fillStyle =
+        "#542222";
+
+    ctx.fillRect(
+        escapeDoor.x - 35,
+        escapeDoor.y - 60,
+        70,
+        120
+    );
+
+    ctx.fillStyle =
+        "#dddddd";
+
+    ctx.font =
+        "12px Arial";
+
+    ctx.textAlign =
+        "center";
+
+    ctx.fillText(
+        "MAIN EXIT",
+        escapeDoor.x,
+        escapeDoor.y + 85
+    );
+
+
+    // KILLER
+
+    if (
+        myPlayer &&
+        myPlayer.role !==
+        "killer"
+    ) {
+
+        drawKiller();
 
     }
 
 
     // PLAYER
 
+    drawPlayer();
+
+
+    // DARKNESS
+
+    drawDarkness();
+
+}
+
+
+// =====================================================
+// ROOM
+// =====================================================
+
+function drawRoom(
+    x,
+    y,
+    width,
+    height,
+    name
+) {
+
+    ctx.fillStyle =
+        "#1c1a16";
+
+    ctx.fillRect(
+        x,
+        y,
+        width,
+        height
+    );
+
+    ctx.strokeStyle =
+        "#3c352b";
+
+    ctx.lineWidth = 4;
+
+    ctx.strokeRect(
+        x,
+        y,
+        width,
+        height
+    );
+
+    ctx.fillStyle =
+        "#4b453b";
+
+    ctx.font =
+        "11px Arial";
+
+    ctx.textAlign =
+        "left";
+
+    ctx.fillText(
+        name,
+        x + 15,
+        y + 22
+    );
+}
+
+
+// =====================================================
+// ITEM
+// =====================================================
+
+function drawItem(item) {
+
     ctx.beginPath();
 
     ctx.arc(
-        playerX,
-        playerY,
-        14,
+        item.x,
+        item.y,
+        13,
         0,
         Math.PI * 2
     );
 
-    ctx.fillStyle =
-        "#c9c9c9";
+    if (
+        item.type === "key"
+    ) {
+
+        ctx.fillStyle =
+            "#d5a82c";
+
+    } else {
+
+        ctx.fillStyle =
+            "#888888";
+    }
 
     ctx.fill();
-
 
     ctx.strokeStyle =
         "#ffffff";
 
     ctx.stroke();
+}
 
 
-    // PLAYER LIGHT
+// =====================================================
+// PLAYER
+// =====================================================
 
-    const light =
-        ctx.createRadialGradient(
-            playerX,
-            playerY,
-            20,
-            playerX,
-            playerY,
-            180
-        );
+function drawPlayer() {
 
+    ctx.beginPath();
 
-    light.addColorStop(
+    ctx.arc(
+        player.x,
+        player.y,
+        15,
         0,
-        "rgba(255,255,220,0.12)"
+        Math.PI * 2
     );
 
-    light.addColorStop(
-        1,
+    ctx.fillStyle =
+        "#d8d8d8";
+
+    ctx.fill();
+
+    ctx.strokeStyle =
+        "#ffffff";
+
+    ctx.lineWidth = 2;
+
+    ctx.stroke();
+}
+
+
+// =====================================================
+// KILLER
+// =====================================================
+
+function drawKiller() {
+
+    ctx.beginPath();
+
+    ctx.arc(
+        killer.x,
+        killer.y,
+        21,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fillStyle =
+        "#8b1515";
+
+    ctx.fill();
+
+    ctx.strokeStyle =
+        "#ff4444";
+
+    ctx.stroke();
+}
+
+
+// =====================================================
+// DARKNESS + FLASHLIGHT
+// =====================================================
+
+function drawDarkness() {
+
+    const darkness =
+        ctx.createRadialGradient(
+            player.x,
+            player.y,
+            flashlight
+                ? 70
+                : 25,
+
+            player.x,
+            player.y,
+            flashlight
+                ? 300
+                : 100
+        );
+
+    darkness.addColorStop(
+        0,
         "rgba(0,0,0,0)"
     );
 
-
-    ctx.fillStyle =
-        light;
-
-
-    ctx.beginPath();
-
-    ctx.arc(
-        playerX,
-        playerY,
-        180,
-        0,
-        Math.PI * 2
+    darkness.addColorStop(
+        1,
+        "rgba(0,0,0,0.94)"
     );
 
-    ctx.fill();
-
-}
-
-
-// =====================================================
-// TREE
-// =====================================================
-
-function drawTree(
-    ctx,
-    x,
-    y
-) {
-
     ctx.fillStyle =
-        "#17110c";
+        darkness;
 
     ctx.fillRect(
-        x - 5,
-        y,
-        10,
-        35
-    );
-
-
-    ctx.beginPath();
-
-    ctx.arc(
-        x,
-        y - 5,
-        25,
         0,
-        Math.PI * 2
+        0,
+        canvas.width,
+        canvas.height
     );
-
-
-    ctx.fillStyle =
-        "#111a14";
-
-    ctx.fill();
-
 }
 
 
 // =====================================================
-// INITIAL DESCRIPTION
+// JUMPSCARE
 // =====================================================
 
-updateCharacterDescription(
-    "Scout"
+function triggerJumpscare() {
+
+    if (
+        jumpscareCooldown > 0
+    )
+        return;
+
+    jumpscareCooldown =
+        500;
+
+    const overlay =
+        document.createElement(
+            "div"
+        );
+
+    overlay.style.position =
+        "fixed";
+
+    overlay.style.inset =
+        "0";
+
+    overlay.style.zIndex =
+        "99999";
+
+    overlay.style.background =
+        "#050000";
+
+    overlay.style.display =
+        "flex";
+
+    overlay.style.alignItems =
+        "center";
+
+    overlay.style.justifyContent =
+        "center";
+
+    overlay.innerHTML = `
+        <div style="
+            font-size:100px;
+            filter:drop-shadow(0 0 30px red);
+        ">
+            👹
+        </div>
+    `;
+
+    document.body.appendChild(
+        overlay
+    );
+
+    setTimeout(
+        () => {
+
+            overlay.remove();
+
+        },
+        1000
+    );
+
+    showGameMessage(
+        "THE KILLER FOUND YOU"
+    );
+}
+
+
+// =====================================================
+// GAME OVER
+// =====================================================
+
+function gameOver() {
+
+    gameRunning = false;
+
+    triggerJumpscare();
+
+    setTimeout(
+        () => {
+
+            alert(
+                "YOU DIED"
+            );
+
+            showScreen(
+                "lobbyScreen"
+            );
+
+        },
+        1200
+    );
+}
+
+
+// =====================================================
+// MESSAGE
+// =====================================================
+
+function showGameMessage(
+    text
+) {
+
+    messageText =
+        text;
+
+    messageTimer =
+        180;
+
+    const objective =
+        document.getElementById(
+            "objectiveHUD"
+        );
+
+    if (objective) {
+
+        objective.textContent =
+            text;
+    }
+}
+
+
+// =====================================================
+// ANIMATION MESSAGE
+// =====================================================
+
+setInterval(
+    () => {
+
+        if (
+            jumpscareCooldown > 0
+        ) {
+
+            jumpscareCooldown--;
+        }
+
+    },
+    1
 );
