@@ -1,7 +1,7 @@
 {
   "name": "killer07",
   "version": "1.0.0",
-  "description": "3D Horror Multiplayer Game - KILLER 07",
+  "description": "3D AAA-Style Horror Survival Game - KILLER 07",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
