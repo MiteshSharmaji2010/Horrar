@@ -1,83 +1,277 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>KILLER 07 - Horror Multiplayer</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KILLER 07 - Horror Mobile</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+        #game-canvas { width: 100%; height: 100%; display: block; }
+
+        /* UI Screens */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #000; color: #ff0000; z-index: 1000;
+        }
+        .horror-text { text-shadow: 0 0 10px red; font-size: 40px; margin-bottom: 20px; }
+        input { padding: 12px; margin: 5px; width: 250px; background: #111; border: 1px solid red; color: white; border-radius: 5px; }
+        button { padding: 15px 30px; background: #800; color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
+
+        /* HUD - Mobile Friendly */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none;
+        }
+        .stats-bar {
+            position: absolute; top: 10px; left: 10px; color: white; font-size: 14px;
+            background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px;
+        }
+        .bar-bg { width: 150px; height: 10px; background: #333; margin: 5px 0; border-radius: 5px; }
+        #hp-fill { width: 100%; height: 100%; background: red; border-radius: 5px; transition: 0.3s; }
+        #stamina-fill { width: 100%; height: 100%; background: #00ff00; border-radius: 5px; }
+
+        /* Mobile Controls */
+        #joystick-zone { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; pointer-events: auto; opacity: 0.7; }
+        .action-container { position: absolute; bottom: 30px; right: 20px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; }
+        .btn-round {
+            width: 60px; height: 60px; background: rgba(100,0,0,0.5); border: 2px solid #f00;
+            border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; active: scale(0.9);
+        }
+
+        /* Proximity Effect */
+        #vignette {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 100px rgba(0,0,0,1); pointer-events: none;
+        }
+        #heartbeat {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            border: 0px solid red; pointer-events: none; transition: 0.5s;
+        }
+    </style>
 </head>
 <body>
 
-  <!-- LOGIN SCREEN -->
-  <div id="login-screen" class="overlay">
-    <div class="logo-box">
-      <h1 class="glitch-title">KILLER 07</h1>
-      <p class="sub-logo">3D HORROR SURVIVAL</p>
-    </div>
-    <div class="form-box">
-      <input type="text" id="player-name" placeholder="Display Name" value="Survivor">
-      <input type="text" id="player-username" placeholder="Username" value="user07">
-      <button id="btn-login" class="btn-main">ENTER LOBBY</button>
-    </div>
-  </div>
+    <!-- Heartbeat/Damage Overlay -->
+    <div id="heartbeat"></div>
+    <div id="vignette"></div>
 
-  <!-- LOBBY SCREEN -->
-  <div id="lobby-screen" class="overlay hidden">
-    <div class="lobby-header">
-      <h2 class="glitch-title-sm">KILLER 07 LOBBY</h2>
-      <div id="player-count">Players: 0/9</div>
-    </div>
-    <div id="lobby-players-list"></div>
-    <button id="btn-start" class="btn-main">START GAME</button>
-  </div>
-
-  <!-- IN-GAME HUD -->
-  <div id="game-hud" class="hidden">
-    <!-- Top Bar: Health, Stamina, Sanity -->
-    <div class="hud-top">
-      <div class="stat-box">
-        <div class="stat-bar"><div id="health-bar"></div></div>
-        <span>HEALTH</span>
-      </div>
-      <div class="stat-box">
-        <div class="stat-bar"><div id="stamina-bar"></div></div>
-        <span>STAMINA</span>
-      </div>
-      <div class="stat-box">
-        <div class="stat-bar"><div id="sanity-bar"></div></div>
-        <span>SANITY</span>
-      </div>
+    <!-- Login UI -->
+    <div id="login-screen" class="overlay">
+        <div class="horror-text">KILLER 07</div>
+        <input type="text" id="username" placeholder="Name">
+        <input type="password" placeholder="Password">
+        <button onclick="startApp()">LOGIN</button>
     </div>
 
-    <!-- Escapes Tracker -->
-    <div id="escape-tracker">
-      <div>🚪 Gate: <span id="gate-count">0/4</span></div>
-      <div>🚁 Heli: <span id="heli-count">0/4</span></div>
-      <div>🚤 Boat: <span id="boat-count">0/4</span></div>
+    <!-- Lobby UI -->
+    <div id="lobby-screen" class="overlay" style="display:none;">
+        <div class="horror-text">3D LOBBY</div>
+        <div id="p-list" style="margin-bottom: 20px; color: #ccc;">Waiting for players (Max 9)...</div>
+        <button onclick="enterMansion()">START GAME</button>
     </div>
 
-    <!-- Interaction & Jumpscare Overlays -->
-    <div id="heartbeat-overlay"></div>
-    <div id="vhs-glitch"></div>
-    <div id="interaction-prompt" class="hidden">Press [E] or Tap to Interact</div>
-    <div id="jumpscare-overlay" class="hidden">YOU WERE ELIMINATED</div>
+    <!-- Game HUD -->
+    <div id="hud">
+        <div class="stats-bar">
+            HEALTH
+            <div class="bar-bg"><div id="hp-fill"></div></div>
+            STAMINA
+            <div class="bar-bg"><div id="stamina-fill"></div></div>
+            ITEMS: <span id="item-count">0/10</span>
+        </div>
+        
+        <div id="joystick-zone"></div>
 
-    <!-- Touch Mobile Controls -->
-    <div id="touch-controls">
-      <div id="joystick-zone">
-        <div id="joystick-knob"></div>
-      </div>
-      <div class="action-buttons">
-        <button id="btn-run" class="ctrl-btn">RUN</button>
-        <button id="btn-crouch" class="ctrl-btn">CROUCH</button>
-        <button id="btn-flash" class="ctrl-btn">FLASH</button>
-        <button id="btn-interact" class="ctrl-btn">ACTION</button>
-      </div>
+        <div class="action-container">
+            <div class="btn-round" id="run-btn" style="background: rgba(0,100,0,0.5);">RUN</div>
+            <div class="btn-round" id="jump-btn">JUMP</div>
+            <div class="btn-round" id="flash-btn">💡 LIGHT</div>
+            <div class="btn-round" id="crouch-btn">CROUCH</div>
+        </div>
     </div>
-  </div>
 
-  <script src="game.js"></script>
+    <canvas id="game-canvas"></canvas>
+
+    <script>
+        // --- VARIABLES ---
+        let scene, camera, renderer, player, socket;
+        let moveState = { f:0, s:0, rot:0, isRunning: false, isCrouching: false };
+        let stats = { hp: 100, stamina: 100, items: 0 };
+        let itemsInMap = [];
+        let isGameStarted = false;
+
+        // --- INIT APP ---
+        function startApp() {
+            const name = document.getElementById('username').value;
+            if(!name) return alert("Enter Name");
+            
+            socket = io(); // Connect to server.js
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('lobby-screen').style.display = 'flex';
+            
+            init3D();
+        }
+
+        function enterMansion() {
+            document.getElementById('lobby-screen').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            isGameStarted = true;
+            spawnItems();
+        }
+
+        // --- 3D ENGINE (OPTIMIZED) ---
+        function init3D() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.12); // Lag-free horror depth
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('game-canvas'),
+                antialias: false, // Mobile optimization
+                powerPreference: "high-performance"
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+
+            // Low-Poly Mansion Base
+            const floorGeo = new THREE.PlaneGeometry(100, 100);
+            const floorMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI/2;
+            scene.add(floor);
+
+            // Simple Walls (Mansion Logic)
+            addWall(0, 0, -20, 40, 10); // Back Wall
+            addWall(-20, 0, 0, 10, 40, true); // Left Wall
+
+            // Player Setup
+            const pGeo = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
+            const pMat = new THREE.MeshPhongMaterial({ color: 0x004400 });
+            player = new THREE.Mesh(pGeo, pMat);
+            player.position.set(0, 1.5, 0);
+            scene.add(player);
+
+            // Flashlight
+            const light = new THREE.SpotLight(0xffffff, 1.5, 20, Math.PI/6, 0.5);
+            player.add(light);
+            player.add(light.target);
+            light.target.position.z = -5;
+
+            setupMobileControls();
+            animate();
+        }
+
+        function addWall(x, y, z, w, h, rot=false) {
+            const geo = new THREE.BoxGeometry(w, h, 1);
+            const mat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+            const wall = new THREE.Mesh(geo, mat);
+            wall.position.set(x, h/2, z);
+            if(rot) wall.rotation.y = Math.PI/2;
+            scene.add(wall);
+        }
+
+        // --- GAMEPLAY LOGIC ---
+        function spawnItems() {
+            const itemNames = ['Key', 'Fuse', 'Battery', 'Crowbar', 'Card', 'Hammer', 'Plug', 'Oil', 'Book', 'Handle'];
+            for(let i=0; i<10; i++) {
+                const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+                const mat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
+                const item = new THREE.Mesh(geo, mat);
+                item.position.set(Math.random()*30-15, 0.5, Math.random()*30-15);
+                item.userData = { name: itemNames[i] };
+                scene.add(item);
+                itemsInMap.push(item);
+            }
+        }
+
+        function setupMobileControls() {
+            // Joystick
+            const manager = nipplejs.create({
+                zone: document.getElementById('joystick-zone'),
+                mode: 'static', position: {left: '60px', bottom: '60px'},
+                color: 'red'
+            });
+
+            manager.on('move', (evt, data) => {
+                moveState.f = data.vector.y;
+                moveState.s = data.vector.x;
+            });
+            manager.on('end', () => { moveState.f = 0; moveState.s = 0; });
+
+            // Buttons
+            document.getElementById('run-btn').ontouchstart = () => moveState.isRunning = true;
+            document.getElementById('run-btn').ontouchend = () => moveState.isRunning = false;
+            
+            document.getElementById('crouch-btn').onclick = () => {
+                moveState.isCrouching = !moveState.isCrouching;
+                player.scale.y = moveState.isCrouching ? 0.5 : 1.0;
+            };
+
+            document.getElementById('flash-btn').onclick = () => {
+                player.children[0].visible = !player.children[0].visible;
+            };
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if(isGameStarted) {
+                // Movement Speed Logic
+                let speed = moveState.isRunning && stats.stamina > 0 ? 0.2 : 0.1;
+                if(moveState.isCrouching) speed = 0.05;
+
+                // Stamina System
+                if(moveState.isRunning && (moveState.f !== 0 || moveState.s !== 0)) {
+                    stats.stamina -= 0.5;
+                } else if(stats.stamina < 100) {
+                    stats.stamina += 0.2;
+                }
+                document.getElementById('stamina-fill').style.width = stats.stamina + "%";
+
+                // Apply Move
+                player.translateZ(-moveState.f * speed);
+                player.translateX(moveState.s * speed);
+
+                // Camera follow
+                camera.position.lerp(new THREE.Vector3(player.position.x, player.position.y+5, player.position.z+8), 0.1);
+                camera.lookAt(player.position);
+
+                // Proximity Horror Effect (Fake distance check for demo)
+                // In real game: check distance between player and Killer Mesh
+                let distToKiller = 20; // Assume killer is 20m away
+                if(distToKiller < 10) {
+                    document.getElementById('heartbeat').style.border = (10-distToKiller)*5 + "px solid rgba(255,0,0,0.5)";
+                }
+
+                // Item Pickup check
+                itemsInMap.forEach((item, index) => {
+                    if(player.position.distanceTo(item.position) < 1.5) {
+                        scene.remove(item);
+                        itemsInMap.splice(index, 1);
+                        stats.items++;
+                        document.getElementById('item-count').innerText = `${stats.items}/10`;
+                        if(stats.items === 10) alert("ESCAPE DOOR OPENED!");
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
 </body>
 </html>
