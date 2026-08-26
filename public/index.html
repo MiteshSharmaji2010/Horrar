@@ -1,269 +1,426 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KILLER 07 - Horror Mobile</title>
+    <title>KILLER 07 - THE ULTIMATE HORROR</title>
     
+    <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
 
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
-        #game-canvas { width: 100%; height: 100%; display: block; }
+        :root { --blood: #800000; --horror-red: #ff0000; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
 
         /* UI Screens */
-        .overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: #000; color: #ff0000; z-index: 1000;
+        .screen {
+            position: absolute; width: 100%; height: 100%; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; transition: opacity 0.5s;
         }
-        .horror-text { text-shadow: 0 0 10px red; font-size: 40px; margin-bottom: 20px; }
-        input { padding: 12px; margin: 5px; width: 250px; background: #111; border: 1px solid red; color: white; border-radius: 5px; }
-        button { padding: 15px 30px; background: #800; color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        #login-screen { background: radial-gradient(circle, #200 0%, #000 100%); }
+        #lobby-screen { background: #050505; display: none; }
+        
+        .title-container { text-align: center; margin-bottom: 30px; animation: flicker 3s infinite; }
+        .main-title { color: var(--horror-red); font-size: 60px; font-weight: 900; text-shadow: 0 0 20px #f00; margin: 0; }
+        .sub-title { color: #555; font-size: 14px; letter-spacing: 10px; }
 
-        /* HUD - Mobile Friendly */
+        .input-group { background: rgba(255, 255, 255, 0.05); padding: 30px; border: 1px solid #300; border-radius: 10px; width: 320px; }
+        input { 
+            width: 100%; padding: 15px; margin-bottom: 15px; background: #111; 
+            border: 1px solid #444; color: #fff; border-radius: 5px; outline: none; 
+        }
+        input:focus { border-color: var(--horror-red); box-shadow: 0 0 10px var(--horror-red); }
+        
+        .btn {
+            width: 100%; padding: 15px; background: var(--blood); color: #fff;
+            border: none; cursor: pointer; font-weight: bold; border-radius: 5px;
+            text-transform: uppercase; letter-spacing: 2px; transition: 0.3s;
+        }
+        .btn:hover { background: var(--horror-red); box-shadow: 0 0 20px var(--horror-red); }
+
+        /* HUD - In-Game */
         #hud {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; display: none;
+            pointer-events: none; display: none; z-index: 50;
         }
-        .stats-bar {
-            position: absolute; top: 10px; left: 10px; color: white; font-size: 14px;
-            background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px;
+        .stats-panel {
+            position: absolute; top: 20px; left: 20px; width: 200px;
+            background: rgba(0, 0, 0, 0.7); padding: 15px; border-left: 4px solid var(--horror-red);
         }
-        .bar-bg { width: 150px; height: 10px; background: #333; margin: 5px 0; border-radius: 5px; }
-        #hp-fill { width: 100%; height: 100%; background: red; border-radius: 5px; transition: 0.3s; }
-        #stamina-fill { width: 100%; height: 100%; background: #00ff00; border-radius: 5px; }
-
+        .bar-label { color: #fff; font-size: 10px; margin-bottom: 3px; }
+        .bar-container { width: 100%; height: 6px; background: #222; margin-bottom: 10px; border-radius: 3px; overflow: hidden; }
+        .bar-fill { height: 100%; transition: width 0.3s linear; }
+        #hp-bar { background: #ff0000; width: 100%; }
+        #stamina-bar { background: #00ff44; width: 100%; }
+        
+        .inventory-panel {
+            position: absolute; top: 20px; right: 20px; text-align: right; color: #fff;
+            background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px;
+        }
+        
         /* Mobile Controls */
-        #joystick-zone { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; pointer-events: auto; opacity: 0.7; }
-        .action-container { position: absolute; bottom: 30px; right: 20px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; }
-        .btn-round {
-            width: 60px; height: 60px; background: rgba(100,0,0,0.5); border: 2px solid #f00;
-            border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: bold; active: scale(0.9);
+        #joystick-wrapper { position: absolute; bottom: 50px; left: 50px; width: 150px; height: 150px; pointer-events: auto; }
+        .controls-right { position: absolute; bottom: 40px; right: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; pointer-events: auto; }
+        .action-btn {
+            width: 70px; height: 70px; background: rgba(0,0,0,0.6); border: 2px solid #444;
+            border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .action-btn:active { transform: scale(0.9); background: var(--blood); border-color: #f00; }
+
+        /* Post-Processing Effects */
+        #noise-overlay {
+            position: absolute; width: 100%; height: 100%; top: 0; pointer-events: none;
+            background: url('https://replicate.delivery/mghp/2a36b56a-1296-419b-a316-6512c1598284/noise.gif');
+            opacity: 0.05; z-index: 10;
+        }
+        #vignette {
+            position: absolute; width: 100%; height: 100%; top: 0; pointer-events: none;
+            box-shadow: inset 0 0 150px #000; z-index: 11;
+        }
+        #jumpscare-overlay {
+            position: absolute; width: 100%; height: 100%; top: 0; background: #000;
+            display: none; z-index: 500; align-items: center; justify-content: center;
         }
 
-        /* Proximity Effect */
-        #vignette {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            box-shadow: inset 0 0 100px rgba(0,0,0,1); pointer-events: none;
-        }
-        #heartbeat {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            border: 0px solid red; pointer-events: none; transition: 0.5s;
+        @keyframes flicker {
+            0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; }
+            20%, 24%, 55% { opacity: 0.3; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Heartbeat/Damage Overlay -->
-    <div id="heartbeat"></div>
+    <div id="noise-overlay"></div>
     <div id="vignette"></div>
 
+    <!-- Jumpscare/Death Screen -->
+    <div id="jumpscare-overlay">
+        <h1 style="color:red; font-size:100px;">YOU DIED</h1>
+    </div>
+
     <!-- Login UI -->
-    <div id="login-screen" class="overlay">
-        <div class="horror-text">KILLER 07</div>
-        <input type="text" id="username" placeholder="Name">
-        <input type="password" placeholder="Password">
-        <button onclick="startApp()">LOGIN</button>
+    <div id="login-screen" class="screen">
+        <div class="title-container">
+            <h1 class="main-title">KILLER 07</h1>
+            <div class="sub-title">MANSION ESCAPE</div>
+        </div>
+        <div class="input-group">
+            <input type="text" id="username" placeholder="NAME / USERNAME">
+            <input type="password" id="password" placeholder="PASSWORD">
+            <button class="btn" onclick="initSession()">ENTER THE VOID</button>
+        </div>
     </div>
 
     <!-- Lobby UI -->
-    <div id="lobby-screen" class="overlay" style="display:none;">
-        <div class="horror-text">3D LOBBY</div>
-        <div id="p-list" style="margin-bottom: 20px; color: #ccc;">Waiting for players (Max 9)...</div>
-        <button onclick="enterMansion()">START GAME</button>
+    <div id="lobby-screen" class="screen">
+        <h2 style="color: #fff;">3D MANSION LOBBY</h2>
+        <div id="status-text" style="color: #666; margin-bottom: 20px;">Finding survivors...</div>
+        <div id="player-list" style="color: #f00; margin-bottom: 30px; min-height: 100px;"></div>
+        <button class="btn" style="width: 200px;" onclick="requestGameStart()">START MISSION</button>
     </div>
 
     <!-- Game HUD -->
     <div id="hud">
-        <div class="stats-bar">
-            HEALTH
-            <div class="bar-bg"><div id="hp-fill"></div></div>
-            STAMINA
-            <div class="bar-bg"><div id="stamina-fill"></div></div>
-            ITEMS: <span id="item-count">0/10</span>
+        <div class="stats-panel">
+            <div class="bar-label">VITAL SIGNS</div>
+            <div class="bar-container"><div id="hp-bar" class="bar-fill"></div></div>
+            <div class="bar-label">ADRENALINE (RUN)</div>
+            <div class="bar-container"><div id="stamina-bar" class="bar-fill"></div></div>
         </div>
-        
-        <div id="joystick-zone"></div>
 
-        <div class="action-container">
-            <div class="btn-round" id="run-btn" style="background: rgba(0,100,0,0.5);">RUN</div>
-            <div class="btn-round" id="jump-btn">JUMP</div>
-            <div class="btn-round" id="flash-btn">💡 LIGHT</div>
-            <div class="btn-round" id="crouch-btn">CROUCH</div>
+        <div class="inventory-panel">
+            OBJECTIVE: ESCAPE<br>
+            ITEMS FOUND: <span id="items-count">0</span> / 10
+        </div>
+
+        <div id="joystick-wrapper"></div>
+
+        <div class="controls-right">
+            <div class="action-btn" id="btn-run">RUN</div>
+            <div class="action-btn" id="btn-flash">LIGHT</div>
+            <div class="action-btn" id="btn-crouch">CROUCH</div>
+            <div class="action-btn" id="btn-interact">TAKE</div>
         </div>
     </div>
 
     <canvas id="game-canvas"></canvas>
 
     <script>
-        // --- VARIABLES ---
-        let scene, camera, renderer, player, socket;
-        let moveState = { f:0, s:0, rot:0, isRunning: false, isCrouching: false };
-        let stats = { hp: 100, stamina: 100, items: 0 };
-        let itemsInMap = [];
-        let isGameStarted = false;
+        /**
+         * KILLER 07 - CORE GAME ENGINE
+         * FEATURES: Advanced Character Controller, Multiplayer Sync, Horror FX, Item Logic
+         */
 
-        // --- INIT APP ---
-        function startApp() {
+        const CONFIG = {
+            MAX_PLAYERS: 9,
+            TOTAL_ITEMS: 10,
+            WALK_SPEED: 0.1,
+            RUN_SPEED: 0.22,
+            CROUCH_SPEED: 0.04,
+            STAMINA_REGEN: 0.3,
+            STAMINA_USE: 0.7
+        };
+
+        let scene, camera, renderer, socket, player;
+        let controls = { f: 0, s: 0, rot: 0, run: false, crouch: false };
+        let gameActive = false;
+        let myData = { hp: 100, stamina: 100, items: 0, role: 'survivor' };
+        let worldItems = [];
+        let otherPlayers = {};
+
+        // --- SESSION INITIALIZATION ---
+        function initSession() {
             const name = document.getElementById('username').value;
-            if(!name) return alert("Enter Name");
+            if(!name) return alert("Identify yourself!");
+
+            socket = io(); // Connects to your server.js
             
-            socket = io(); // Connect to server.js
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('lobby-screen').style.display = 'flex';
-            
-            init3D();
+            document.getElementById('login-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('lobby-screen').style.display = 'flex';
+                init3DEngine();
+            }, 500);
+
+            // Socket Listeners
+            socket.on('updatePlayers', (list) => {
+                const container = document.getElementById('player-list');
+                container.innerHTML = Object.values(list).map(p => `<div>${p.name.toUpperCase()} - READY</div>`).join('');
+                document.getElementById('status-text').innerText = `${Object.keys(list).length}/9 Players in Lobby`;
+            });
+
+            socket.on('gameStarted', (players) => {
+                enterMansion(players);
+            });
         }
 
-        function enterMansion() {
-            document.getElementById('lobby-screen').style.display = 'none';
-            document.getElementById('hud').style.display = 'block';
-            isGameStarted = true;
-            spawnItems();
-        }
-
-        // --- 3D ENGINE (OPTIMIZED) ---
-        function init3D() {
+        // --- 3D ENGINE CORE ---
+        function init3DEngine() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.12); // Lag-free horror depth
+            scene.fog = new THREE.FogExp2(0x000000, 0.1); // Dynamic horror fog
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             
             renderer = new THREE.WebGLRenderer({ 
                 canvas: document.getElementById('game-canvas'),
-                antialias: false, // Mobile optimization
+                antialias: false,
                 powerPreference: "high-performance"
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            renderer.shadowMap.enabled = true;
 
-            // Low-Poly Mansion Base
-            const floorGeo = new THREE.PlaneGeometry(100, 100);
-            const floorMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI/2;
-            scene.add(floor);
+            // Mansion Environment (Low-Poly Optimization)
+            createMansion();
 
-            // Simple Walls (Mansion Logic)
-            addWall(0, 0, -20, 40, 10); // Back Wall
-            addWall(-20, 0, 0, 10, 40, true); // Left Wall
-
-            // Player Setup
-            const pGeo = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
-            const pMat = new THREE.MeshPhongMaterial({ color: 0x004400 });
-            player = new THREE.Mesh(pGeo, pMat);
-            player.position.set(0, 1.5, 0);
+            // Local Player Setup
+            const playerGeo = new THREE.BoxGeometry(0.8, 1.8, 0.8);
+            const playerMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+            player = new THREE.Mesh(playerGeo, playerMat);
+            player.position.set(0, 1, 0);
             scene.add(player);
 
-            // Flashlight
-            const light = new THREE.SpotLight(0xffffff, 1.5, 20, Math.PI/6, 0.5);
-            player.add(light);
-            player.add(light.target);
-            light.target.position.z = -5;
+            // Flashlight (Limited Dynamic Light)
+            const flash = new THREE.SpotLight(0xffffff, 2, 25, Math.PI/7, 0.4);
+            flash.castShadow = true;
+            player.add(flash);
+            player.add(flash.target);
+            flash.target.position.z = -5;
 
-            setupMobileControls();
+            setupInputs();
             animate();
         }
 
-        function addWall(x, y, z, w, h, rot=false) {
-            const geo = new THREE.BoxGeometry(w, h, 1);
-            const mat = new THREE.MeshPhongMaterial({ color: 0x222222 });
-            const wall = new THREE.Mesh(geo, mat);
-            wall.position.set(x, h/2, z);
-            if(rot) wall.rotation.y = Math.PI/2;
-            scene.add(wall);
-        }
+        function createMansion() {
+            // Floor
+            const floor = new THREE.Mesh(
+                new THREE.PlaneGeometry(200, 200),
+                new THREE.MeshPhongMaterial({ color: 0x080808 })
+            );
+            floor.rotation.x = -Math.PI/2;
+            floor.receiveShadow = true;
+            scene.add(floor);
 
-        // --- GAMEPLAY LOGIC ---
-        function spawnItems() {
-            const itemNames = ['Key', 'Fuse', 'Battery', 'Crowbar', 'Card', 'Hammer', 'Plug', 'Oil', 'Book', 'Handle'];
-            for(let i=0; i<10; i++) {
-                const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-                const mat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
-                const item = new THREE.Mesh(geo, mat);
-                item.position.set(Math.random()*30-15, 0.5, Math.random()*30-15);
-                item.userData = { name: itemNames[i] };
-                scene.add(item);
-                itemsInMap.push(item);
-            }
-        }
+            // Procedural Walls (Complex Mansion Layout)
+            const wallMat = new THREE.MeshPhongMaterial({ color: 0x151515 });
+            const wallData = [
+                {w: 100, h: 10, d: 1, x: 0, z: -50}, // North
+                {w: 100, h: 10, d: 1, x: 0, z: 50},  // South
+                {w: 1, h: 10, d: 100, x: -50, z: 0}, // West
+                {w: 1, h: 10, d: 100, x: 50, z: 0},  // East
+                // Rooms
+                {w: 20, h: 10, d: 1, x: -30, z: 10},
+                {w: 1, h: 10, d: 20, x: -20, z: 20},
+            ];
 
-        function setupMobileControls() {
-            // Joystick
-            const manager = nipplejs.create({
-                zone: document.getElementById('joystick-zone'),
-                mode: 'static', position: {left: '60px', bottom: '60px'},
-                color: 'red'
+            wallData.forEach(data => {
+                const wall = new THREE.Mesh(new THREE.BoxGeometry(data.w, data.h, data.d), wallMat);
+                wall.position.set(data.x, 5, data.z);
+                scene.add(wall);
             });
 
-            manager.on('move', (evt, data) => {
-                moveState.f = data.vector.y;
-                moveState.s = data.vector.x;
+            // Ambient Horror Light
+            scene.add(new THREE.AmbientLight(0x404040, 0.1));
+        }
+
+        function setupInputs() {
+            // Mobile Joystick (NippleJS)
+            const joy = nipplejs.create({
+                zone: document.getElementById('joystick-wrapper'),
+                mode: 'static', position: {left: '75px', bottom: '75px'},
+                color: 'red', size: 100
             });
-            manager.on('end', () => { moveState.f = 0; moveState.s = 0; });
 
-            // Buttons
-            document.getElementById('run-btn').ontouchstart = () => moveState.isRunning = true;
-            document.getElementById('run-btn').ontouchend = () => moveState.isRunning = false;
-            
-            document.getElementById('crouch-btn').onclick = () => {
-                moveState.isCrouching = !moveState.isCrouching;
-                player.scale.y = moveState.isCrouching ? 0.5 : 1.0;
-            };
+            joy.on('move', (e, d) => {
+                controls.f = d.vector.y;
+                controls.s = d.vector.x;
+            });
+            joy.on('end', () => { controls.f = 0; controls.s = 0; });
 
-            document.getElementById('flash-btn').onclick = () => {
+            // Button Logic
+            const btnRun = document.getElementById('btn-run');
+            btnRun.ontouchstart = () => { controls.run = true; btnRun.style.background = "red"; };
+            btnRun.ontouchend = () => { controls.run = false; btnRun.style.background = ""; };
+
+            document.getElementById('btn-flash').onclick = () => {
                 player.children[0].visible = !player.children[0].visible;
             };
+
+            document.getElementById('btn-crouch').onclick = () => {
+                controls.crouch = !controls.crouch;
+                player.scale.y = controls.crouch ? 0.6 : 1.0;
+                player.position.y = controls.crouch ? 0.5 : 1.0;
+            };
+
+            // Keyboard for PC
+            window.addEventListener('keydown', (e) => {
+                if(e.code === 'ShiftLeft') controls.run = true;
+                if(e.code === 'KeyW') controls.f = 1;
+                if(e.code === 'KeyS') controls.f = -1;
+                if(e.code === 'KeyA') controls.s = -1;
+                if(e.code === 'KeyD') controls.s = 1;
+            });
+            window.addEventListener('keyup', (e) => {
+                if(e.code === 'ShiftLeft') controls.run = false;
+                if(e.code === 'KeyW' || e.code === 'KeyS') controls.f = 0;
+                if(e.code === 'KeyA' || e.code === 'KeyD') controls.s = 0;
+            });
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
+        function requestGameStart() {
+            socket.emit('startGame');
+        }
+
+        function enterMansion(playersData) {
+            gameActive = true;
+            document.getElementById('lobby-screen').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
             
-            if(isGameStarted) {
-                // Movement Speed Logic
-                let speed = moveState.isRunning && stats.stamina > 0 ? 0.2 : 0.1;
-                if(moveState.isCrouching) speed = 0.05;
-
-                // Stamina System
-                if(moveState.isRunning && (moveState.f !== 0 || moveState.s !== 0)) {
-                    stats.stamina -= 0.5;
-                } else if(stats.stamina < 100) {
-                    stats.stamina += 0.2;
-                }
-                document.getElementById('stamina-fill').style.width = stats.stamina + "%";
-
-                // Apply Move
-                player.translateZ(-moveState.f * speed);
-                player.translateX(moveState.s * speed);
-
-                // Camera follow
-                camera.position.lerp(new THREE.Vector3(player.position.x, player.position.y+5, player.position.z+8), 0.1);
-                camera.lookAt(player.position);
-
-                // Proximity Horror Effect (Fake distance check for demo)
-                // In real game: check distance between player and Killer Mesh
-                let distToKiller = 20; // Assume killer is 20m away
-                if(distToKiller < 10) {
-                    document.getElementById('heartbeat').style.border = (10-distToKiller)*5 + "px solid rgba(255,0,0,0.5)";
-                }
-
-                // Item Pickup check
-                itemsInMap.forEach((item, index) => {
-                    if(player.position.distanceTo(item.position) < 1.5) {
-                        scene.remove(item);
-                        itemsInMap.splice(index, 1);
-                        stats.items++;
-                        document.getElementById('item-count').innerText = `${stats.items}/10`;
-                        if(stats.items === 10) alert("ESCAPE DOOR OPENED!");
-                    }
-                });
+            // Randomly Assign Killer
+            myData.role = playersData[socket.id].role;
+            if(myData.role === 'killer') {
+                player.material.color.set(0x880000);
+                alert("YOU ARE THE KILLER. HUNT THEM DOWN.");
             }
 
+            spawnItems();
+        }
+
+        function spawnItems() {
+            const itemGeo = new THREE.SphereGeometry(0.3, 8, 8);
+            const itemMat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff });
+            
+            for(let i=0; i<CONFIG.TOTAL_ITEMS; i++) {
+                const item = new THREE.Mesh(itemGeo, itemMat);
+                item.position.set(Math.random()*80-40, 0.5, Math.random()*80-40);
+                scene.add(item);
+                worldItems.push(item);
+            }
+        }
+
+        // --- MAIN GAME LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if(gameActive) {
+                updateMovement();
+                updateHUD();
+                checkCollisions();
+                syncMultiplayer();
+            }
+
+            // Camera Smoothing
+            const targetCamPos = new THREE.Vector3(player.position.x, player.position.y + 10, player.position.z + 12);
+            camera.position.lerp(targetCamPos, 0.05);
+            camera.lookAt(player.position);
+
             renderer.render(scene, camera);
+        }
+
+        function updateMovement() {
+            // Speed logic
+            let currentSpeed = CONFIG.WALK_SPEED;
+            if(controls.run && myData.stamina > 10) {
+                currentSpeed = CONFIG.RUN_SPEED;
+                myData.stamina -= CONFIG.STAMINA_USE;
+            } else {
+                myData.stamina = Math.min(100, myData.stamina + CONFIG.STAMINA_REGEN);
+            }
+            if(controls.crouch) currentSpeed = CONFIG.CROUCH_SPEED;
+
+            // Rotation and Translation
+            if(controls.f !== 0 || controls.s !== 0) {
+                const angle = Math.atan2(controls.s, controls.f);
+                player.rotation.y = angle;
+                player.translateZ(currentSpeed);
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('hp-bar').style.width = myData.hp + "%";
+            document.getElementById('stamina-bar').style.width = myData.stamina + "%";
+            document.getElementById('items-count').innerText = myData.items;
+
+            // Health drop if killer is near (Fake proximity)
+            // if(distToKiller < 5) myData.hp -= 0.1;
+            if(myData.hp <= 0) gameOver();
+        }
+
+        function checkCollisions() {
+            worldItems.forEach((item, index) => {
+                if(player.position.distanceTo(item.position) < 1.5) {
+                    scene.remove(item);
+                    worldItems.splice(index, 1);
+                    myData.items++;
+                    if(myData.items >= 10) winGame();
+                }
+            });
+        }
+
+        function syncMultiplayer() {
+            socket.emit('move', {
+                x: player.position.x,
+                y: player.position.y,
+                z: player.position.z,
+                ry: player.rotation.y
+            });
+        }
+
+        function gameOver() {
+            gameActive = false;
+            document.getElementById('jumpscare-overlay').style.display = 'flex';
+            setTimeout(() => location.reload(), 3000);
+        }
+
+        function winGame() {
+            alert("YOU ESCAPED THE MANSION!");
+            location.reload();
         }
 
         window.addEventListener('resize', () => {
